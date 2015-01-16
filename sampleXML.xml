@@ -1,0 +1,10 @@
+<parent>
+    content before child1
+    <child1>
+        Content of Child1
+    </child1>
+    <child2>
+        Content of child2
+    </child2>
+    content after child2
+</parent>
