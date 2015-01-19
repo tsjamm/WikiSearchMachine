@@ -8,6 +8,11 @@
 
 import xml
 import xml.sax as sax
+import re
+
+primitive_token_detection = re.compile(u'[^\s]+')
+primitive_pipe_detection = re.compile(u'\|')
+infobox_detection = re.compile(u"{{[\s]*[i|I]nfobox(.*)}}[\s]*'''")
 
 class StopWords(object):
     
@@ -36,12 +41,28 @@ class WikiArticle(object):
         self.minor = ""
         self.comment = ""
         self.text = ""
+        self.infobox = {}
+        self.infobox_type = ""
         
     def processArticle(self):
         print("Processing Article: {0}".format(self.title))
         #print("Text = {0}".format(self.text))
         #First need to extract infobox and remove from Text
+        self.getInfoBox()
         #need to remove stopwords from the remaining text
+        
+    def getInfoBox(self):
+        match = re.search(infobox_detection, self.text)
+        if match:
+            infobox_string = match.group(1).strip()
+            infobox_tokens = infobox_string.split('|')
+            if infobox_tokens:
+                if not "=" in infobox_tokens[0]:
+                    self.infobox_type = infobox_tokens[0]
+                    print("InfoboxType = {0}".format(self.infobox_type))
+                for token in infobox_tokens:
+                    print token
+        
 
 class WikiContentHandler(sax.ContentHandler):
     
