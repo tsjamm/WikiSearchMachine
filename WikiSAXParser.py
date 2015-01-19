@@ -9,6 +9,21 @@
 import xml
 import xml.sax as sax
 
+class StopWords(object):
+    
+    def __init__(self):
+        self.stopwords = []
+        print("Loading Stopwords from file into memory")
+        with open("stopwords.txt") as input_file:
+            for input_line_raw in input_file:
+                input_line = unicode(input_line_raw,"utf-8")
+                input_tokens = input_line.split(', ')
+                self.stopwords.extend(input_tokens)
+    
+    def printStopWordsToTerminal(self):
+        for sw in self.stopwords:
+            print(sw)
+
 class WikiArticle(object):
     
     def __init__(self):
@@ -24,7 +39,9 @@ class WikiArticle(object):
         
     def processArticle(self):
         print("Processing Article: {0}".format(self.title))
-        
+        #print("Text = {0}".format(self.text))
+        #First need to extract infobox and remove from Text
+        #need to remove stopwords from the remaining text
 
 class WikiContentHandler(sax.ContentHandler):
     
@@ -48,7 +65,7 @@ class WikiContentHandler(sax.ContentHandler):
     
     def endElement(self, name):
         if name == "page":
-            print(self.current_article.title)
+            self.current_article.processArticle()
         to_store = self.current_characters.strip()
         if name == "title":
             self.current_article.title = to_store
@@ -87,50 +104,9 @@ class WikiContentHandler(sax.ContentHandler):
         if unicode_content and self.current_element:
             #print("Characters = {0}".format(unicode_content))
             self.current_characters += unicode_content + " "
-
-# This class is just a sample one that prints stuff to the terminal for testing purposes
-class SampleWikiContentHandler(sax.ContentHandler):
-    
-    def __init__(self):
-        sax.ContentHandler.__init__(self)
-        self.elements = []
-        self.current_element = ""
-    
-    def startElement(self, name, attrs):
-        #print("The Element Pushed = {0}".format(name))
-        self.elements.append(name)
-        self.current_element = name
-        toPrint = ""
-        for i in range(len(self.elements)):
-            toPrint += "    "
-        toPrint += self.current_element
-        print(toPrint)
-    
-    def endElement(self, name):
-        toPrint = ""
-        for i in range(len(self.elements)):
-            toPrint += "    "
-        toPrint += "/" + self.current_element
-        print(toPrint)
-        #print("The Element Popped = {0}".format(name))
-        self.elements.pop()
-        if self.elements:
-            self.current_element = self.elements[len(self.elements)-1]
-        else:
-            self.current_element = ""
-    
-    def characters(self, content):
-        #unicode_content = unicode(content,"utf-8")
-        unicode_content = content.encode("utf-8")
-        if unicode_content.strip() and self.current_element:
-            #print("Characters = {0}".format(unicode_content))
-            toPrint = ""
-            for i in range(len(self.elements)):
-                toPrint += "    "
-            toPrint += unicode_content
-            #print(toPrint)
         
 
-testXMLFile = "sampleXML.xml"
-#sax.parse(testXMLFile, SampleWikiContentHandler())
-sax.parse(testXMLFile, WikiContentHandler())
+
+s_w = StopWords()
+sax.parse("sampleXML.xml", WikiContentHandler())
+
