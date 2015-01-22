@@ -20,6 +20,7 @@ CITE_START_STRING = u"{{cite"
 cite_start_detection = re.compile(CITE_START_STRING,re.I)
 
 external_links_detection = re.compile(u"http[^\s]+\s",re.I|re.M)
+flower_detection = re.compile("{{(.*?)}}");
 
 redirect_detection = re.compile(u"#REDIRECT\s?\[\[(.*?)\]\]",re.I)
 stub_detection = re.compile(u"-stub}}")
@@ -58,6 +59,7 @@ class WikiArticle(object):
         self.minor = ""
         self.comment = ""
         self.text = ""
+        self.infobox = {}
         self.infobox_string = ""
         self.infobox_type = ""
         self.categories = []
@@ -68,7 +70,7 @@ class WikiArticle(object):
         #print("Text = {0}".format(self.text))
         #First need to extract infobox and remove from Text
         self.getInfoBox()
-        self.getInfoBoxType()
+        #self.getInfoBoxType() #this occurs in getInfoBox...
         self.getCategories()
         self.getExternalLinks()
         #need to remove stopwords from the remaining text
@@ -102,7 +104,46 @@ class WikiArticle(object):
             #print("self.text = {0}".format(self.text))
             self.infobox_string = self.removeCite(self.infobox_string)
             self.infobox_string = self.infobox_string.replace("&gt;",">").replace("&lt;", "<").replace("&amp;", "&").replace("<ref.*?>.*?</ref>", " ").replace("</?.*?>", " ")
-        
+            
+            new_line_splits = self.infobox_string.split("\n")
+            if new_line_splits:
+                temp = new_line_splits[0].lower()
+                pipe_find = temp.find("|")
+                if pipe_find > 0 :
+                    temp = temp[0:pipe_find]
+                brack_find = temp.find("}}")
+                if brack_find > 0 :
+                    temp = temp[0:brack_find]
+                gt_mark_find = temp.find("<!")
+                if gt_mark_find > 0 :
+                    temp = temp[0:gt_mark_find]
+                temp = temp.replace("{{infobox", "").replace("\n", "").replace("#", "").replace("_"," ").strip()
+                self.infobox_type = temp
+            for str in new_line_splits:
+                if str.find("=") < 0 :
+                    continue
+                if str.find("{{") >= 0 :
+                    bmatches = re.finditer(flower_detection, self.text)
+                    if bmatches:
+                        for bmatch in bmatches:
+                            mtcd = bmatch.group(1)
+                            changed = mtcd.replace("|", "-").replace("=", "-")
+                            str.replace(mtcd, changed)
+                if str.find("|") >= 0 :
+                    piped_strings = str.split("|")
+                    for ps in piped_strings:
+                        key_val = ps.split("=")
+                        
+                        if len(key_val) != 2 :
+                            continue
+                        
+                        key = key_val[0].replace("|", "").replace("?", "").replace("{", "").replace("}", "").replace("[", "").replace("]", "").strip().lower()   
+                        val = key_val[1].replace("[", "").replace("{", "").replace("}", "").replace("[", "").replace("]", "").strip().lower()
+                        
+                        self.infobox[key] = val
+            # print("length of infobox keys = {0}".format(len(self.infobox)))
+            # for k in self.infobox:
+            #     print "{0} = {1}".format(k,self.infobox[k])
         
     def removeCite(self, string_to_strip):
         start_match = re.search(cite_start_detection,self.text)
@@ -152,8 +193,9 @@ class WikiArticle(object):
                 temp = match.group(1).split("|")
                 if temp:
                     self.categories.extend(temp)
-        for cat in self.categories:
-            print(cat)
+        #for cat in self.categories:
+            #print(cat)
+            
     
     def getExternalLinks(self):
         matches = re.finditer(external_links_detection, self.text)
@@ -161,8 +203,8 @@ class WikiArticle(object):
             temp = match.group()
             if temp:
                 self.external_links.append(temp)
-        for link in self.external_links:
-            print(link)
+        #for link in self.external_links:
+            #print(link)
             
     
 class WikiContentHandler(sax.ContentHandler):
