@@ -58,6 +58,7 @@ class WikiArticle(object):
         self.text = ""
         self.infobox_string = ""
         self.infobox_type = ""
+        self.categories = []
         
     def processArticle(self):
         print("Processing Article: {0}".format(self.title))
@@ -65,6 +66,7 @@ class WikiArticle(object):
         #First need to extract infobox and remove from Text
         self.getInfoBox()
         self.getInfoBoxType()
+        self.getCategories()
         #need to remove stopwords from the remaining text
         
     def getInfoBox(self):
@@ -138,7 +140,18 @@ class WikiArticle(object):
                 temp = temp.replace("{{infobox", "").replace("\n", "").replace("#", "").replace("_"," ").strip()
                 self.infobox_type = temp
         #print("infobox_type = {0}".format(self.infobox_type))
-
+    
+    def getCategories(self):
+        matches = re.finditer(category_detection, self.text)
+        if matches:
+            for match in matches:
+                temp = match.group(1).split("|")
+                if temp:
+                    self.categories = temp
+        for cat in self.categories:
+            print(cat)
+            
+    
 class WikiContentHandler(sax.ContentHandler):
     
     def __init__(self):
