@@ -19,6 +19,8 @@ infobox_start_detection = re.compile(INFOBOX_START_STRING,re.I)
 CITE_START_STRING = u"{{cite"
 cite_start_detection = re.compile(CITE_START_STRING,re.I)
 
+external_links_detection = re.compile(u"http[^\s]+\s",re.I|re.M)
+
 redirect_detection = re.compile(u"#REDIRECT\s?\[\[(.*?)\]\]",re.I)
 stub_detection = re.compile(u"-stub}}")
 disambig_detection = re.compile(u"{{disambig}}")
@@ -59,6 +61,7 @@ class WikiArticle(object):
         self.infobox_string = ""
         self.infobox_type = ""
         self.categories = []
+        self.external_links = []
         
     def processArticle(self):
         print("Processing Article: {0}".format(self.title))
@@ -67,6 +70,7 @@ class WikiArticle(object):
         self.getInfoBox()
         self.getInfoBoxType()
         self.getCategories()
+        self.getExternalLinks()
         #need to remove stopwords from the remaining text
         
     def getInfoBox(self):
@@ -147,9 +151,18 @@ class WikiArticle(object):
             for match in matches:
                 temp = match.group(1).split("|")
                 if temp:
-                    self.categories = temp
+                    self.categories.extend(temp)
         for cat in self.categories:
             print(cat)
+    
+    def getExternalLinks(self):
+        matches = re.finditer(external_links_detection, self.text)
+        for match in matches:
+            temp = match.group()
+            if temp:
+                self.external_links.append(temp)
+        for link in self.external_links:
+            print(link)
             
     
 class WikiContentHandler(sax.ContentHandler):
