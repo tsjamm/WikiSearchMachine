@@ -9,8 +9,17 @@
 import xml
 import xml.sax as sax
 import re
+from StringIO import StringIO
+from sys import argv
+import nltk
+nltk.download('punkt')   #Needed for word_tokenize
+from nltk import PorterStemmer
+from nltk import word_tokenize
+
+script, infile, outfile = argv
 
 primitive_token_detection = re.compile(u'[^\s]+')
+primitive_word_detection = re.compile(u'\A[\w-]+\Z')
 primitive_pipe_detection = re.compile(u'\|')
 # Infobox Detection does not work with this regext due to misplaced infoboxes
 #infobox_detection = re.compile(u"{{[\s]*infobox(.*)}}[\s]*'''",re.I)
@@ -31,6 +40,8 @@ relations_detection = re.compile(u"\[\[([^\[\]]+)\]\]",re.M|re.S)
 section_detection = re.compile(u"^==([^=].*?[^=])==$",re.M)
 sub_section_detection =re.compile(u"^===([^=].*?[^=])===$",re.M)
 
+TermFreqMap = {}
+TermDocMap = {}
 
 class StopWords(object):
     
@@ -43,9 +54,41 @@ class StopWords(object):
                 input_tokens = input_line.split(', ')
                 self.stopwords.extend(input_tokens)
     
+    def isStopWord(self,token):
+    	if token in self.stopwords:
+    		return True
+    	else: 
+    		return False
+    
     def printStopWordsToTerminal(self):
         for sw in self.stopwords:
             print(sw)
+
+class TokenStemmer(object):
+    
+    def getStemmedTokens(self, text):
+        content = text.lower()
+    	#Tokenizing
+    	tokens = []
+    	try:
+    		tokens = nltk.word_tokenize(text)
+    	except Exception as inst:
+    		print type(inst)
+    		tokens = text.split(" ")
+        #Removing StopWords
+    	tokens1 = []
+    	for token in tokens:
+    		if not s_w.isStopWord(token):
+    			tokens1.append(token)
+    	#Stemming
+    	stemTokens = []
+    	for token in tokens1:
+    		if re.match(primitive_word_detection, token):
+    			stemTokens.append(PorterStemmer().stem_word(token))
+    		else:
+    			stemTokens.append(token)
+    	return stemTokens
+    
 
 class WikiArticle(object):
     
@@ -102,7 +145,7 @@ class WikiArticle(object):
             #print("infobox_string = {0}".format(self.infobox_string))
             self.text = self.text[0:start_pos] + " " + self.text[end_pos+1:]
             #print("self.text = {0}".format(self.text))
-            self.infobox_string = self.removeCite(self.infobox_string)
+            #self.infobox_string = self.removeCite(self.infobox_string)
             self.infobox_string = self.infobox_string.replace("&gt;",">").replace("&lt;", "<").replace("&amp;", "&").replace("<ref.*?>.*?</ref>", " ").replace("</?.*?>", " ")
             
             new_line_splits = self.infobox_string.split("\n")
@@ -229,7 +272,9 @@ class WikiContentHandler(sax.ContentHandler):
     
     def endElement(self, name):
         if name == "page":
-            self.current_article.processArticle()
+            self.current_article.processArticle()    #### This is were the processing for the article starts........starts
+            indexer = Indexer(self.current_article)
+            
         to_store = self.current_characters.strip()
         if name == "title":
             self.current_article.title = to_store
@@ -270,7 +315,58 @@ class WikiContentHandler(sax.ContentHandler):
             self.current_characters += unicode_content + " "
         
 
+class Indexer(object):
+    
+    def __init__(self, wikiArticle):
+        self.wA = wikiArticle
+        self.tS = TokenStemmer()
+        self.buildTermFreqMap()
+
+    def buildTermFreqMap(self):
+        title_tokens = self.tS.getStemmedTokens(self.wA.title)
+        for token in title_tokens:
+            self.putTokenInTermFreqMap(token)
+        link_tokens = self.wA.external_links
+        for token in link_tokens:
+            self.putTokenInTermFreqMap(token)
+        cat_tokens = self.wA.categories
+        for token in cat_tokens:
+            self.putTokenInTermFreqMap(token)
+        for key in self.wA.infobox:
+            self.putTokenInTermFreqMap(self.wA.infobox[key])
+        text_tokens = self.tS.getStemmedTokens(self.wA.text)
+        for token in text_tokens:
+            self.putTokenInTermFreqMap(token)
+    
+    def putTokenInTermFreqMap(self,token):
+    	if token not in TermFreqMap:
+    		TermFreqMap[token] = 1
+    	else:
+    		TermFreqMap[token] = TermFreqMap[token] + 1
+    	
+    	if token not in TermDocMap:
+            newlist = []
+            newlist.append(1)
+            newlist.append(TermFreqMap[token])
+            newlist.append(self.wA.id)
+            TermDocMap[token] = newlist
+    	else:
+            oldlist = TermDocMap[token]
+            oldlist.insert(0, oldlist[0]+1)
+            oldlist.append(TermFreqMap[token])
+            oldlist.append(self.wA.id)
+            TermDocMap[token] = oldlist
+class IndexWriter(object):
+    
+    def __init__(self):
+        fileobj = open(outfile, "ab")
+    	for key in TermDocMap.keys():
+    		#bytes = bytearray(TermDocMap[key].getByte_List())
+    		fileobj.write(bytes(key))
+    		fileobj.write(bytes(TermDocMap[key]))
 
 s_w = StopWords()
-sax.parse("sampleXML.xml", WikiContentHandler())
+#sax.parse("sampleXML.xml", WikiContentHandler())
+sax.parse(infile, WikiContentHandler())
+IndexWriter() #This writes to outfile....
 
