@@ -12,7 +12,22 @@ import re
 
 primitive_token_detection = re.compile(u'[^\s]+')
 primitive_pipe_detection = re.compile(u'\|')
-infobox_detection = re.compile(u"{{[\s]*[i|I]nfobox(.*)}}[\s]*'''")
+# Infobox Detection does not work with this regext due to misplaced infoboxes
+#infobox_detection = re.compile(u"{{[\s]*infobox(.*)}}[\s]*'''",re.I)
+INFOBOX_START_STRING = u"{{Infobox"
+infobox_start_detection = re.compile(INFOBOX_START_STRING,re.I)
+CITE_START_STRING = u"{{cite"
+cite_start_detection = re.compile(CITE_START_STRING,re.I)
+
+redirect_detection = re.compile(u"#REDIRECT\s?\[\[(.*?)\]\]",re.I)
+stub_detection = re.compile(u"-stub}}")
+disambig_detection = re.compile(u"{{disambig}}")
+category_detection = re.compile(u"\[\[Category:(.*?)\]\]",re.M)
+link_detection = re.compile(u"\[\[(.*?)\]\]",re.M)
+relations_detection = re.compile(u"\[\[([^\[\]]+)\]\]",re.M|re.S)
+section_detection = re.compile(u"^==([^=].*?[^=])==$",re.M)
+sub_section_detection =re.compile(u"^===([^=].*?[^=])===$",re.M)
+
 
 class StopWords(object):
     
@@ -41,7 +56,7 @@ class WikiArticle(object):
         self.minor = ""
         self.comment = ""
         self.text = ""
-        self.infobox = {}
+        self.infobox_string = ""
         self.infobox_type = ""
         
     def processArticle(self):
@@ -49,20 +64,80 @@ class WikiArticle(object):
         #print("Text = {0}".format(self.text))
         #First need to extract infobox and remove from Text
         self.getInfoBox()
+        self.getInfoBoxType()
         #need to remove stopwords from the remaining text
         
     def getInfoBox(self):
-        match = re.search(infobox_detection, self.text)
-        if match:
-            infobox_string = match.group(1).strip()
-            infobox_tokens = infobox_string.split('|')
-            if infobox_tokens:
-                if not "=" in infobox_tokens[0]:
-                    self.infobox_type = infobox_tokens[0]
-                    print("InfoboxType = {0}".format(self.infobox_type))
-                for token in infobox_tokens:
-                    print token
+        start_match = re.search(infobox_start_detection,self.text)
+        #print("start_match = {0}".format(start_match))
+        if start_match:
+            start_pos = start_match.start()
+            #print("start_pos = {0}".format(start_pos))
+            if start_pos < 0 :
+                return
+            brack_count = 2
+            end_pos = start_pos + len(INFOBOX_START_STRING)
+            while(end_pos < len(self.text)):
+                #print("in loop end_pos = {0}".format(end_pos))
+                if self.text[end_pos] == '}':
+                    brack_count = brack_count - 1
+                if self.text[end_pos] == '{':
+                    brack_count = brack_count + 1
+                if brack_count == 0:
+                    break
+                end_pos = end_pos+1
+            # Malformed infoboxes are not considered.....
+            if end_pos+1 >= len(self.text):
+                return
+            #print("end_pos = {0}".format(end_pos))
+            self.infobox_string = self.text[start_pos:end_pos+1]
+            #print("infobox_string = {0}".format(self.infobox_string))
+            self.text = self.text[0:start_pos] + " " + self.text[end_pos+1:]
+            #print("self.text = {0}".format(self.text))
+            self.infobox_string = self.removeCite(self.infobox_string)
+            self.infobox_string = self.infobox_string.replace("&gt;",">").replace("&lt;", "<").replace("&amp;", "&").replace("<ref.*?>.*?</ref>", " ").replace("</?.*?>", " ")
         
+        
+    def removeCite(self, string_to_strip):
+        start_match = re.search(cite_start_detection,self.text)
+        #print("start_match = {0}".format(start_match))
+        if start_match:
+            start_pos = start_match.start()
+            #print("start_pos = {0}".format(start_pos))
+            if start_pos < 0 :
+                return string_to_strip
+            brack_count = 2
+            end_pos = start_pos + len(INFOBOX_START_STRING)
+            while(end_pos < len(self.text)):
+                #print("in loop end_pos = {0}".format(end_pos))
+                if self.text[end_pos] == '}':
+                    brack_count = brack_count - 1
+                if self.text[end_pos] == '{':
+                    brack_count = brack_count + 1
+                if brack_count == 0:
+                    break
+                end_pos = end_pos+1
+            string_to_strip = string_to_strip[0:start_pos-1] + string_to_strip[end_pos:]
+            return removeCite(string_to_strip)
+        return string_to_strip
+    
+    def getInfoBoxType(self):
+        if self.infobox_string:
+            new_line_splits = self.infobox_string.split("\n")
+            if new_line_splits:
+                temp = new_line_splits[0].lower()
+                pipe_find = temp.find("|")
+                if pipe_find > 0 :
+                    temp = temp[0:pipe_find]
+                brack_find = temp.find("}}")
+                if brack_find > 0 :
+                    temp = temp[0:brack_find]
+                gt_mark_find = temp.find("<!")
+                if gt_mark_find > 0 :
+                    temp = temp[0:gt_mark_find]
+                temp = temp.replace("{{infobox", "").replace("\n", "").replace("#", "").replace("_"," ").strip()
+                self.infobox_type = temp
+        #print("infobox_type = {0}".format(self.infobox_type))
 
 class WikiContentHandler(sax.ContentHandler):
     
