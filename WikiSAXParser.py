@@ -50,8 +50,10 @@ class StopWords(object):
         print("Loading Stopwords from file into memory")
         with open("stopwords.txt") as input_file:
             for input_line_raw in input_file:
+                # print type(input_line_raw)
                 input_line = unicode(input_line_raw,"utf-8")
-                input_tokens = input_line.split(', ')
+                # print type(input_line)
+                input_tokens = input_line_raw.split(', ')
                 self.stopwords.extend(input_tokens)
     
     def isStopWord(self,token):
@@ -309,10 +311,12 @@ class WikiContentHandler(sax.ContentHandler):
     
     def characters(self, content):
         #unicode_content = unicode(content,"utf-8")
-        unicode_content = content.encode("utf-8").strip()
-        if unicode_content and self.current_element:
+        # print(type(content))
+        # unicode_content = content.encode("utf-8").strip()
+        # print(type(unicode_content))
+        if content and self.current_element:
             #print("Characters = {0}".format(unicode_content))
-            self.current_characters += unicode_content + " "
+            self.current_characters += content + " "
         
 
 class Indexer(object):
@@ -356,14 +360,16 @@ class Indexer(object):
             oldlist.append(TermFreqMap[token])
             oldlist.append(self.wA.id)
             TermDocMap[token] = oldlist
+            
 class IndexWriter(object):
-    
     def __init__(self):
         fileobj = open(outfile, "ab")
-    	for key in TermDocMap.keys():
-    		#bytes = bytearray(TermDocMap[key].getByte_List())
-    		fileobj.write(bytes(key))
+        for key in TermDocMap.keys():
+    	    #bytes = bytearray(TermDocMap[key].getByte_List())
+    		fileobj.write(bytes(key.encode('utf-8')))
+    		#print(key.encode('utf-8'))
     		fileobj.write(bytes(TermDocMap[key]))
+    		#print("   "+bytes(TermDocMap[key]))
 
 s_w = StopWords()
 #sax.parse("sampleXML.xml", WikiContentHandler())
