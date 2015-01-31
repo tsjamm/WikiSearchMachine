@@ -41,7 +41,7 @@ section_detection = re.compile(u"^==([^=].*?[^=])==$",re.M)
 sub_section_detection =re.compile(u"^===([^=].*?[^=])===$",re.M)
 
 TermFreqMap = {}
-TermDocMap = {}
+#TermDocMap = {}
 
 class StopWords(object):
     
@@ -329,47 +329,64 @@ class Indexer(object):
     def buildTermFreqMap(self):
         title_tokens = self.tS.getStemmedTokens(self.wA.title)
         for token in title_tokens:
-            self.putTokenInTermFreqMap(token)
-        link_tokens = self.wA.external_links
-        for token in link_tokens:
-            self.putTokenInTermFreqMap(token)
+            self.putTitleTokenInTermFreqMap(token)
+        #link_tokens = self.wA.external_links
+        #for token in link_tokens:
+        #    self.putTokenInTermFreqMap(token)
         cat_tokens = self.wA.categories
         for token in cat_tokens:
-            self.putTokenInTermFreqMap(token)
+            self.putCatTokenInTermFreqMap(token)
         for key in self.wA.infobox:
-            self.putTokenInTermFreqMap(self.wA.infobox[key])
+            self.putIBTokenInTermFreqMap(self.wA.infobox[key])
         text_tokens = self.tS.getStemmedTokens(self.wA.text)
         for token in text_tokens:
-            self.putTokenInTermFreqMap(token)
+            self.putBodyTokenInTermFreqMap(token)
     
-    def putTokenInTermFreqMap(self,token):
-    	if token not in TermFreqMap:
-    		TermFreqMap[token] = 1
-    	else:
-    		TermFreqMap[token] = TermFreqMap[token] + 1
-    	
-    	if token not in TermDocMap:
-            newlist = []
-            newlist.append(1)
-            newlist.append(TermFreqMap[token])
-            newlist.append(self.wA.id)
-            TermDocMap[token] = newlist
-    	else:
-            oldlist = TermDocMap[token]
-            oldlist.insert(0, oldlist[0]+1)
-            oldlist.append(TermFreqMap[token])
-            oldlist.append(self.wA.id)
-            TermDocMap[token] = oldlist
+    def checkIfTokenInTermFreqMap(self,token):
+        if token not in TermFreqMap:
+            freq_obj = {}
+            TermFreqMap[token] = freq_obj
+        if self.wA.id not in TermFreqMap[token]:
+            freq_doc_obj = {}
+            freq_doc_obj["t"] = 0 #title
+            freq_doc_obj["b"] = 0 #body
+            freq_doc_obj["c"] = 0 #cat
+            freq_doc_obj["i"] = 0 #infobox
+            TermFreqMap[token][self.wA.id] = freq_doc_obj
+    
+    def putTitleTokenInTermFreqMap(self,token):
+        self.checkIfTokenInTermFreqMap(token)
+        TermFreqMap[token][self.wA.id]["t"] += 1
+        
+    def putBodyTokenInTermFreqMap(self,token):
+        self.checkIfTokenInTermFreqMap(token)
+        TermFreqMap[token][self.wA.id]["b"] += 1
+        
+    def putCatTokenInTermFreqMap(self,token):
+        self.checkIfTokenInTermFreqMap(token)
+        TermFreqMap[token][self.wA.id]["c"] += 1
+        
+    def putIBTokenInTermFreqMap(self,token):
+        self.checkIfTokenInTermFreqMap(token)
+        TermFreqMap[token][self.wA.id]["i"] += 1
             
 class IndexWriter(object):
     def __init__(self):
-        fileobj = open(outfile, "ab")
-        for key in TermDocMap.keys():
-    	    #bytes = bytearray(TermDocMap[key].getByte_List())
-    		fileobj.write(bytes(key.encode('utf-8')))
-    		#print(key.encode('utf-8'))
-    		fileobj.write(bytes(TermDocMap[key]))
-    		#print("   "+bytes(TermDocMap[key]))
+        fileobj = open(outfile, "a")
+        
+        for word in TermFreqMap:
+            toWrite = u"" + word + "="
+            fo = TermFreqMap[word]
+            for did in fo:
+                toWrite += did+":"
+                fdo = fo[did]
+                tfreq = fdo["t"]
+                bfreq = fdo["b"]
+                cfreq = fdo["c"]
+                ifreq = fdo["i"]
+                total_freq = tfreq+bfreq+cfreq+ifreq
+                toWrite += "{0}t{1}b{2}c{3}i{4}\n".format(total_freq,tfreq,bfreq,cfreq,ifreq)
+            fileobj.write(toWrite.encode('utf-8'))
 
 s_w = StopWords()
 #sax.parse("sampleXML.xml", WikiContentHandler())
