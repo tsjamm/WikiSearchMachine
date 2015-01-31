@@ -111,7 +111,7 @@ class WikiArticle(object):
         self.external_links = []
         
     def processArticle(self):
-        print("Processing Article: {0}".format(self.title))
+        print("Processing Article: {0}".format(self.title.encode('utf-8')))
         #print("Text = {0}".format(self.text))
         #First need to extract infobox and remove from Text
         self.getInfoBox()
