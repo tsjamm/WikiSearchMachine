@@ -372,7 +372,7 @@ class Indexer(object):
             self.putBodyTokenInTermFreqMap(token)
     
     def checkTermFreqMapSizeAndWrite(self):
-        if len(TermFreqMap) > 2000:
+        if len(TermFreqMap) > 10000:
             IndexWriter().mergeWriter()
             
     
@@ -438,11 +438,18 @@ class IndexWriter(object):
     def getFOFromLine(self,fline):
         freq_obj = {}
         docs = fline.split(';')
+        # print docs
         for doc in docs:
+            # print doc
             parts = doc.split(':')
+            if len(parts) != 2:
+                continue
+            # print parts
             did = parts[0]
-            freq_doc_obj = {}
+            # print did
             fstring = parts[1]
+            freq_doc_obj = {}
+            
             matches = re.finditer(freq_string_detection, fstring)
             if matches:
                 for match in matches:
@@ -459,12 +466,16 @@ class IndexWriter(object):
         return freq_obj
     
     def getNewFO(self, word, ffo):
-        mfo = TermFreqMap[word]
-        cfo = dict(mfo.items() + ffo.items())
-        return cfo
+        if word in TermFreqMap:
+            mfo = TermFreqMap[word]
+            cfo = dict(mfo.items() + ffo.items())
+            return cfo
+        else:
+            return ffo
     
     def removeMFO(self,word):
-        del TermFreqMap[word]
+        if word in TermFreqMap:
+            del TermFreqMap[word]
     
     def mergeWriter(self):
         with open(outfile+".tmp","w") as temp_file:
@@ -479,7 +490,7 @@ class IndexWriter(object):
                         toWrite = u"" + word + "="
                         for did in cfo:
                             toWrite += did+":"
-                            fdo = fo[did]
+                            fdo = cfo[did]
                             tfreq = fdo["t"]
                             bfreq = fdo["b"]
                             cfreq = fdo["c"]
@@ -502,6 +513,7 @@ class IndexWriter(object):
                     toWrite += "{0}t{1}b{2}c{3}i{4};".format(total_freq,tfreq,bfreq,cfreq,ifreq)
                 toWrite += "\n"
                 temp_file.write(toWrite.encode('utf-8'))
+                self.removeMFO(word)
             
         
         with open(outfile+".tmp","r") as temp_file:
