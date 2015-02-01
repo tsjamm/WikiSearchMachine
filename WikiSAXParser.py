@@ -15,6 +15,7 @@ import nltk
 nltk.download('punkt')   #Needed for word_tokenize
 from nltk import PorterStemmer
 from nltk import word_tokenize
+import os.path
 
 script, infile, outfile = argv
 
@@ -39,6 +40,8 @@ link_detection = re.compile(u"\[\[(.*?)\]\]",re.M)
 relations_detection = re.compile(u"\[\[([^\[\]]+)\]\]",re.M|re.S)
 section_detection = re.compile(u"^==([^=].*?[^=])==$",re.M)
 sub_section_detection =re.compile(u"^===([^=].*?[^=])===$",re.M)
+
+freq_string_detection = re.compile("([0-9]*)t([0-9]*)b([0-9]*)c([0-9]*)i([0-9]*)")
 
 TermFreqMap = {}
 #TermDocMap = {}
@@ -106,6 +109,7 @@ class WikiArticle(object):
         self.text = ""
         self.infobox = {}
         self.infobox_string = ""
+        self.infobox_values_string = ""
         self.infobox_type = ""
         self.categories = []
         self.external_links = []
@@ -115,6 +119,7 @@ class WikiArticle(object):
         #print("Text = {0}".format(self.text))
         #First need to extract infobox and remove from Text
         self.getInfoBox()
+        self.getInfoBoxValuesString()
         #self.getInfoBoxType() #this occurs in getInfoBox...
         self.getCategories()
         self.getExternalLinks()
@@ -213,6 +218,13 @@ class WikiArticle(object):
             return removeCite(string_to_strip)
         return string_to_strip
     
+    def getInfoBoxValuesString(self):
+        ib_val_string = ""
+        for key in self.infobox:
+            ib_val_string += re.sub(u'[^a-zA-Z]+',' ',self.infobox[key])
+            ib_val_string += " "
+        self.infobox_values_string = ib_val_string
+    
     def getInfoBoxType(self):
         if self.infobox_string:
             new_line_splits = self.infobox_string.split("\n")
@@ -238,7 +250,7 @@ class WikiArticle(object):
                 temp = match.group(1).split("|")
                 if temp:
                     self.categories.extend(temp)
-        re.sub(category_detection, '', self.text) # this is for removing the category headings....
+        re.sub(category_detection, ' ', self.text) # this is for removing the category headings....
         #for cat in self.categories:
             #print(cat)
             
@@ -253,9 +265,15 @@ class WikiArticle(object):
             #print(link)
     
     def makeTextAlphaNumeric(self):
-        self.text = re.sub(u'[^a-zA-Z]+', '', self.text)
+        self.text = re.sub(u'[^a-zA-Z]+', ' ', self.text)
+        self.title = re.sub(u'[^a-zA-Z]+', ' ', self.title)
         for key in self.infobox:
-            self.infobox[key] = re.sub(u'[^a-zA-Z]+','',self.infobox[key])
+            self.infobox[key] = re.sub(u'[^a-zA-Z]+',' ',self.infobox[key])
+        newCats = []
+        for cat in self.categories:
+            cat = re.sub(u'[^a-zA-Z]+',' ',cat)
+            newCats.append(cat)
+        self.categories = newCats
         
     
 class WikiContentHandler(sax.ContentHandler):
@@ -331,6 +349,7 @@ class Indexer(object):
         self.wA = wikiArticle
         self.tS = TokenStemmer()
         self.buildTermFreqMap()
+        self.checkTermFreqMapSizeAndWrite()
 
     def buildTermFreqMap(self):
         title_tokens = self.tS.getStemmedTokens(self.wA.title)
@@ -339,18 +358,22 @@ class Indexer(object):
         #link_tokens = self.wA.external_links
         #for token in link_tokens:
         #    self.putTokenInTermFreqMap(token)
-        cat_tokens = self.wA.categories
+        cat_tokens = self.tS.getStemmedTokens(self.getStringFromListofStrings(self.wA.categories))
         for token in cat_tokens:
             self.putCatTokenInTermFreqMap(token)
-        for key in self.wA.infobox:
-            if self.wA.infobox[key] != '':
-                self.putIBTokenInTermFreqMap(self.wA.infobox[key])
+        ib_tokens = self.tS.getStemmedTokens(self.wA.infobox_values_string)
+        for token in ib_tokens:
+            self.putIBTokenInTermFreqMap(token)
+        # for key in self.wA.infobox:
+        #     if self.wA.infobox[key] != '':
+        #         self.putIBTokenInTermFreqMap(self.wA.infobox[key])
         text_tokens = self.tS.getStemmedTokens(self.wA.text)
         for token in text_tokens:
             self.putBodyTokenInTermFreqMap(token)
     
-    # def checkTermFreqMapSizeAndWrite(self):
-    #     if len(TermFreqMap) > 2000:
+    def checkTermFreqMapSizeAndWrite(self):
+        if len(TermFreqMap) > 2000:
+            IndexWriter().mergeWriter()
             
     
     def checkIfTokenInTermFreqMap(self,token):
@@ -381,46 +404,117 @@ class Indexer(object):
     def putIBTokenInTermFreqMap(self,token):
         self.checkIfTokenInTermFreqMap(token)
         TermFreqMap[token][self.wA.id]["i"] += 1
+    
+    def getStringFromListofStrings(self,list):
+        toReturn = ""
+        for str in list:
+            toReturn += str + " "
+        return toReturn
             
 class IndexWriter(object):
-    
     def __init__(self):
-        fileobj = open(outfile, "a")
-        
-        for word in TermFreqMap:
-            toWrite = u"" + word + "="
-            fo = TermFreqMap[word]
-            for did in fo:
-                toWrite += did+":"
-                fdo = fo[did]
-                tfreq = fdo["t"]
-                bfreq = fdo["b"]
-                cfreq = fdo["c"]
-                ifreq = fdo["i"]
-                total_freq = tfreq+bfreq+cfreq+ifreq
-                toWrite += "{0}t{1}b{2}c{3}i{4};".format(total_freq,tfreq,bfreq,cfreq,ifreq)
-            toWrite += "\n"
-            fileobj.write(toWrite.encode('utf-8'))
+        if not os.path.exists(outfile):
+            out_file = open(outfile,"w")
+            out_file.close()
+        if not os.path.exists(outfile+".tmp"):
+            temp_file = open(outfile+".tmp","w")
+            temp_file.close()
+    #     fileobj = open(outfile, "a")
+    #     for word in TermFreqMap:
+    #         toWrite = u"" + word + "="
+    #         fo = TermFreqMap[word]
+    #         for did in fo:
+    #             toWrite += did+":"
+    #             fdo = fo[did]
+    #             tfreq = fdo["t"]
+    #             bfreq = fdo["b"]
+    #             cfreq = fdo["c"]
+    #             ifreq = fdo["i"]
+    #             total_freq = tfreq+bfreq+cfreq+ifreq
+    #             toWrite += "{0}t{1}b{2}c{3}i{4};".format(total_freq,tfreq,bfreq,cfreq,ifreq)
+    #         toWrite += "\n"
+    #         fileobj.write(toWrite.encode('utf-8'))
+    
+    def getFOFromLine(self,fline):
+        freq_obj = {}
+        docs = fline.split(';')
+        for doc in docs:
+            parts = doc.split(':')
+            did = parts[0]
+            freq_doc_obj = {}
+            fstring = parts[1]
+            matches = re.finditer(freq_string_detection, fstring)
+            if matches:
+                for match in matches:
+                    total = int(match.group(1))
+                    title = int(match.group(2))
+                    body = int(match.group(3))
+                    cat = int(match.group(4))
+                    infob = int(match.group(5))
+                    freq_doc_obj["t"] = title #title
+                    freq_doc_obj["b"] = body #body
+                    freq_doc_obj["c"] = cat #cat
+                    freq_doc_obj["i"] = infob #infobox
+            freq_obj[did] = freq_doc_obj
+        return freq_obj
+    
+    def getNewFO(self, word, ffo):
+        mfo = TermFreqMap[word]
+        cfo = dict(mfo.items() + ffo.items())
+        return cfo
+    
+    def removeMFO(self,word):
+        del TermFreqMap[word]
     
     def mergeWriter(self):
-        old_file = open(outfile,"r")
-        temp_file = open(outfile+".tmp", "a")
-        for word in TermFreqMap:
-            toWrite = u"" + word + "="
-            fo = TermFreqMap[word]
-            for did in fo:
-                toWrite += did+":"
-                fdo = fo[did]
-                tfreq = fdo["t"]
-                bfreq = fdo["b"]
-                cfreq = fdo["c"]
-                ifreq = fdo["i"]
-                total_freq = tfreq+bfreq+cfreq+ifreq
-                toWrite += "{0}t{1}b{2}c{3}i{4}\n".format(total_freq,tfreq,bfreq,cfreq,ifreq)
-            fileobj.write(toWrite.encode('utf-8'))
+        with open(outfile+".tmp","w") as temp_file:
+            with open(outfile,"r") as old_file:
+                for line in old_file:
+                    parts = line.split('=')
+                    if len(parts) == 2:
+                        word = parts[0]
+                        ffo = self.getFOFromLine(parts[1])
+                        cfo = self.getNewFO(word, ffo)
+                        self.removeMFO(word)
+                        toWrite = u"" + word + "="
+                        for did in cfo:
+                            toWrite += did+":"
+                            fdo = fo[did]
+                            tfreq = fdo["t"]
+                            bfreq = fdo["b"]
+                            cfreq = fdo["c"]
+                            ifreq = fdo["i"]
+                            total_freq = tfreq+bfreq+cfreq+ifreq
+                            toWrite += "{0}t{1}b{2}c{3}i{4};".format(total_freq,tfreq,bfreq,cfreq,ifreq)
+                        toWrite += "\n"
+                        temp_file.write(toWrite.encode('utf-8'))
+            for word in TermFreqMap:
+                toWrite = u"" + word + "="
+                fo = TermFreqMap[word]
+                for did in fo:
+                    toWrite += did+":"
+                    fdo = fo[did]
+                    tfreq = fdo["t"]
+                    bfreq = fdo["b"]
+                    cfreq = fdo["c"]
+                    ifreq = fdo["i"]
+                    total_freq = tfreq+bfreq+cfreq+ifreq
+                    toWrite += "{0}t{1}b{2}c{3}i{4};".format(total_freq,tfreq,bfreq,cfreq,ifreq)
+                toWrite += "\n"
+                temp_file.write(toWrite.encode('utf-8'))
+            
+        
+        with open(outfile+".tmp","r") as temp_file:
+            with open(outfile,"w") as new_file:
+                for line in temp_file:
+                    new_file.write(line)
+        
+        with open(outfile+".tmp","w") as temp_file:
+            print("tempfile copied and erased")
+
 
 s_w = StopWords()
 #sax.parse("sampleXML.xml", WikiContentHandler())
 sax.parse(infile, WikiContentHandler())
-IndexWriter() #This writes to outfile....
+IndexWriter().mergeWriter() #This writes to outfile....
 
