@@ -45,6 +45,7 @@ freq_string_detection = re.compile("([0-9]*)t([0-9]*)b([0-9]*)c([0-9]*)i([0-9]*)
 
 TermFreqMap = {}
 #TermDocMap = {}
+articleCount = 0
 
 class StopWords(object):
     
@@ -301,6 +302,7 @@ class WikiContentHandler(sax.ContentHandler):
             self.current_article.processArticle()    #### This is were the processing for the article starts........starts
             indexer = Indexer(self.current_article)
             
+            
         to_store = self.current_characters.strip()
         if name == "title":
             self.current_article.title = to_store
@@ -346,6 +348,8 @@ class WikiContentHandler(sax.ContentHandler):
 class Indexer(object):
     
     def __init__(self, wikiArticle):
+        global articleCount
+        articleCount += 1
         self.wA = wikiArticle
         self.tS = TokenStemmer()
         self.buildTermFreqMap()
@@ -513,7 +517,7 @@ class IndexWriter(object):
                     toWrite += "{0}t{1}b{2}c{3}i{4};".format(total_freq,tfreq,bfreq,cfreq,ifreq)
                 toWrite += "\n"
                 temp_file.write(toWrite.encode('utf-8'))
-                self.removeMFO(word)
+            TermFreqMap.clear()
             
         
         with open(outfile+".tmp","r") as temp_file:
@@ -522,7 +526,7 @@ class IndexWriter(object):
                     new_file.write(line)
         
         with open(outfile+".tmp","w") as temp_file:
-            print("tempfile copied and erased")
+            print("tempfile copied and erased :::: Article Count = {0}".format(articleCount))
 
 
 s_w = StopWords()
@@ -530,3 +534,7 @@ s_w = StopWords()
 sax.parse(infile, WikiContentHandler())
 IndexWriter().mergeWriter() #This writes to outfile....
 
+
+with open(outfile+".done","w") as done_file:
+    done_file.write("processing is completed")
+    print("processing is done")
