@@ -111,14 +111,14 @@ class WikiArticle(object):
         self.external_links = []
         
     def processArticle(self):
-        print("Processing Article: {0}".format(self.title.encode('utf-8')))
+        #print("Processing Article: {0}".format(self.title.encode('utf-8')))
         #print("Text = {0}".format(self.text))
         #First need to extract infobox and remove from Text
         self.getInfoBox()
         #self.getInfoBoxType() #this occurs in getInfoBox...
         self.getCategories()
         self.getExternalLinks()
-        #need to remove stopwords from the remaining text
+        self.makeTextAlphaNumeric()
         
     def getInfoBox(self):
         start_match = re.search(infobox_start_detection,self.text)
@@ -238,6 +238,7 @@ class WikiArticle(object):
                 temp = match.group(1).split("|")
                 if temp:
                     self.categories.extend(temp)
+        re.sub(category_detection, '', self.text) # this is for removing the category headings....
         #for cat in self.categories:
             #print(cat)
             
@@ -250,7 +251,12 @@ class WikiArticle(object):
                 self.external_links.append(temp)
         #for link in self.external_links:
             #print(link)
-            
+    
+    def makeTextAlphaNumeric(self):
+        self.text = re.sub(u'[^a-zA-Z]+', '', self.text)
+        for key in self.infobox:
+            self.infobox[key] = re.sub(u'[^a-zA-Z]+','',self.infobox[key])
+        
     
 class WikiContentHandler(sax.ContentHandler):
     
@@ -337,12 +343,18 @@ class Indexer(object):
         for token in cat_tokens:
             self.putCatTokenInTermFreqMap(token)
         for key in self.wA.infobox:
-            self.putIBTokenInTermFreqMap(self.wA.infobox[key])
+            if self.wA.infobox[key] != '':
+                self.putIBTokenInTermFreqMap(self.wA.infobox[key])
         text_tokens = self.tS.getStemmedTokens(self.wA.text)
         for token in text_tokens:
             self.putBodyTokenInTermFreqMap(token)
     
+    # def checkTermFreqMapSizeAndWrite(self):
+    #     if len(TermFreqMap) > 2000:
+            
+    
     def checkIfTokenInTermFreqMap(self,token):
+        
         if token not in TermFreqMap:
             freq_obj = {}
             TermFreqMap[token] = freq_obj
@@ -371,9 +383,28 @@ class Indexer(object):
         TermFreqMap[token][self.wA.id]["i"] += 1
             
 class IndexWriter(object):
+    
     def __init__(self):
         fileobj = open(outfile, "a")
         
+        for word in TermFreqMap:
+            toWrite = u"" + word + "="
+            fo = TermFreqMap[word]
+            for did in fo:
+                toWrite += did+":"
+                fdo = fo[did]
+                tfreq = fdo["t"]
+                bfreq = fdo["b"]
+                cfreq = fdo["c"]
+                ifreq = fdo["i"]
+                total_freq = tfreq+bfreq+cfreq+ifreq
+                toWrite += "{0}t{1}b{2}c{3}i{4};".format(total_freq,tfreq,bfreq,cfreq,ifreq)
+            toWrite += "\n"
+            fileobj.write(toWrite.encode('utf-8'))
+    
+    def mergeWriter(self):
+        old_file = open(outfile,"r")
+        temp_file = open(outfile+".tmp", "a")
         for word in TermFreqMap:
             toWrite = u"" + word + "="
             fo = TermFreqMap[word]
