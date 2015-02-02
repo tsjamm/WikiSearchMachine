@@ -16,6 +16,8 @@ nltk.download('punkt')   #Needed for word_tokenize
 from nltk import PorterStemmer
 from nltk import word_tokenize
 import os.path
+from shutil import copyfileobj
+import bz2
 
 script, infile, outfile = argv
 
@@ -534,6 +536,9 @@ s_w = StopWords()
 sax.parse(infile, WikiContentHandler())
 IndexWriter().mergeWriter() #This writes to outfile....
 
+with open(outfile, 'rb') as toCompress:
+    with bz2.BZ2File(outfile+".bz2", 'wb', compresslevel=9) as compressed:
+        copyfileobj(toCompress, compressed)
 
 with open(outfile+".done","w") as done_file:
     done_file.write("processing is completed")
