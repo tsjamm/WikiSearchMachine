@@ -544,7 +544,13 @@ s_w = StopWords()
 sax.parse(infile, WikiContentHandler())
 IndexWriter().mergeWriter() #This writes to outfile....
 
-with open(outfile, 'rb') as toCompress:
+
+with open(outfile+".sorted","w") as sorted_file:
+    with open(outfile,"r") as unsorted_file:
+        for line in sorted(unsorted_file, key = str.lower):
+            sorted_file.write(line)
+
+with open(outfile+".sorted", 'rb') as toCompress:
     with bz2.BZ2File(outfile+".bz2", 'wb', compresslevel=9) as compressed:
         copyfileobj(toCompress, compressed)
 
