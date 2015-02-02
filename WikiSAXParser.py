@@ -385,7 +385,7 @@ class Indexer(object):
         #if len(TermFreqMap) > 10000:
             #IndexWriter().mergeWriter()
         global toDumpCount
-        if toDumpCount > 1000:
+        if toDumpCount > 3000:
             IndexWriter().mergeWriter()
             toDumpCount = 0
             
@@ -551,6 +551,6 @@ with open(outfile, 'rb') as toCompress:
 end = int(round(time.time()*1000))
 
 with open(outfile+".done","w") as done_file:
-    toPrint = "Process is complete. Time Taken = {0}".format((end-start))
+    toPrint = "Process is complete. Time Taken in milliseconds = {0}".format((end-start))
     print toPrint
     done_file.write(toPrint)
