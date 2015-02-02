@@ -18,6 +18,7 @@ from nltk import word_tokenize
 import os.path
 from shutil import copyfileobj
 import bz2
+import time
 
 script, infile, outfile = argv
 
@@ -48,6 +49,7 @@ freq_string_detection = re.compile("([0-9]*)t([0-9]*)b([0-9]*)c([0-9]*)i([0-9]*)
 TermFreqMap = {}
 #TermDocMap = {}
 articleCount = 0
+toDumpCount = 0
 
 class StopWords(object):
     
@@ -268,13 +270,13 @@ class WikiArticle(object):
             #print(link)
     
     def makeTextAlphaNumeric(self):
-        self.text = re.sub(u'[^a-zA-Z]+', ' ', self.text)
-        self.title = re.sub(u'[^a-zA-Z]+', ' ', self.title)
+        self.text = re.sub(u'[^a-zA-Z0-9]+', ' ', self.text)
+        self.title = re.sub(u'[^a-zA-Z0-9]+', ' ', self.title)
         for key in self.infobox:
-            self.infobox[key] = re.sub(u'[^a-zA-Z]+',' ',self.infobox[key])
+            self.infobox[key] = re.sub(u'[^a-zA-Z0-9]+',' ',self.infobox[key])
         newCats = []
         for cat in self.categories:
-            cat = re.sub(u'[^a-zA-Z]+',' ',cat)
+            cat = re.sub(u'[^a-zA-Z0-9]+',' ',cat)
             newCats.append(cat)
         self.categories = newCats
         
@@ -352,6 +354,8 @@ class Indexer(object):
     def __init__(self, wikiArticle):
         global articleCount
         articleCount += 1
+        global toDumpCount
+        toDumpCount += 1
         self.wA = wikiArticle
         self.tS = TokenStemmer()
         self.buildTermFreqMap()
@@ -378,8 +382,12 @@ class Indexer(object):
             self.putBodyTokenInTermFreqMap(token)
     
     def checkTermFreqMapSizeAndWrite(self):
-        if len(TermFreqMap) > 10000:
+        #if len(TermFreqMap) > 10000:
+            #IndexWriter().mergeWriter()
+        global toDumpCount
+        if toDumpCount > 1000:
             IndexWriter().mergeWriter()
+            toDumpCount = 0
             
     
     def checkIfTokenInTermFreqMap(self,token):
@@ -530,7 +538,7 @@ class IndexWriter(object):
         with open(outfile+".tmp","w") as temp_file:
             print("tempfile copied and erased :::: Article Count = {0}".format(articleCount))
 
-
+start = int(round(time.time()*1000))
 s_w = StopWords()
 #sax.parse("sampleXML.xml", WikiContentHandler())
 sax.parse(infile, WikiContentHandler())
@@ -540,6 +548,9 @@ with open(outfile, 'rb') as toCompress:
     with bz2.BZ2File(outfile+".bz2", 'wb', compresslevel=9) as compressed:
         copyfileobj(toCompress, compressed)
 
+end = int(round(time.time()*1000))
+
 with open(outfile+".done","w") as done_file:
-    done_file.write("processing is completed")
-    print("processing is done")
+    toPrint = "Process is complete. Time Taken = {0}".format((end-start))
+    print toPrint
+    done_file.write(toPrint)
