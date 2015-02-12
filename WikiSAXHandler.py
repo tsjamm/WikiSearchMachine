@@ -212,13 +212,14 @@ class WikiArticle(object):
     
 class WikiContentHandler(sax.ContentHandler):
     
-    def __init__(self):
+    def __init__(self, outfile):
         sax.ContentHandler.__init__(self)
         self.elements = []
         self.parent_element = ""
         self.current_element = ""
         self.current_article = {}
         self.current_characters = ""
+        self.outfile = outfile
     
     def startElement(self, name, attrs):
         #print("The Element Pushed = {0}".format(name))
@@ -233,7 +234,7 @@ class WikiContentHandler(sax.ContentHandler):
     def endElement(self, name):
         if name == "page":
             self.current_article.processArticle()    #### This is where the processing for the article starts........starts
-            Indexer.doIndex(self.current_article)
+            Indexer.doIndex(self.current_article, self.outfile)
             
             
         to_store = self.current_characters.strip()

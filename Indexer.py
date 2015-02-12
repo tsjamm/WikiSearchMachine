@@ -11,6 +11,7 @@ import TokenStemmer
 import os.path
 
 TermFreqMap = {}
+DocumentIDTitleMap = {}
 freq_string_detection = re.compile("([0-9]*)t([0-9]*)b([0-9]*)c([0-9]*)i([0-9]*)")
 articleCount = 0
 toDumpCount = 0
@@ -24,13 +25,14 @@ def doInit(outfile):
         temp_file.close()
 
 
-def doIndex(wikiArticle):
+def doIndex(wikiArticle, outfile):
     global articleCount
     global toDumpCount
     articleCount += 1
     toDumpCount += 1
+    DocumentIDTitleMap[wikiArticle.id] = wikiArticle.title
     buildTermFreqMap(wikiArticle)
-    checkTermFreqMapSizeAndWrite()
+    checkTermFreqMapSizeAndWrite(outfile)
 
 def buildTermFreqMap(wikiArticle):
     title_tokens = TokenStemmer.getStemmedTokens(wikiArticle.title)
@@ -49,12 +51,12 @@ def buildTermFreqMap(wikiArticle):
     for token in text_tokens:
         putBodyTokenInTermFreqMap(token, wikiArticle.id)
 
-def checkTermFreqMapSizeAndWrite():
+def checkTermFreqMapSizeAndWrite(outfile):
     #if len(TermFreqMap) > 10000:
         #IndexWriter().mergeWriter()
     global toDumpCount
-    if toDumpCount > 3000:
-        IndexWriter().mergeWriter()
+    if toDumpCount >= 5000:
+        mergeWriter(outfile)
         toDumpCount = 0
         
 
@@ -185,3 +187,9 @@ def mergeWriter(outfile):
     
     with open(outfile+".tmp","w") as temp_file:
         print("tempfile copied and erased :::: Article Count = {0}".format(articleCount))
+
+        
+def writeDocIdTitlesToFile(outfile):
+    with open(outfile+".titles","w") as titles_file:
+        for docid in DocumentIDTitleMap.keys():
+            titles_file.write("{0}={1}\n".format(docid,DocumentIDTitleMap[docid]))

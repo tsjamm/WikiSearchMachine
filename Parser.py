@@ -22,10 +22,11 @@ from WikiSAXHandler import WikiContentHandler
 script, infile, outfile = argv
 
 start = int(round(time.time()*1000))
-#sax.parse("sampleXML.xml", WikiContentHandler())
-sax.parse(infile, WikiContentHandler())
 Indexer.doInit(outfile)
+#sax.parse("sampleXML.xml", WikiContentHandler())
+sax.parse(infile, WikiContentHandler(outfile))
 Indexer.mergeWriter(outfile) #This writes to outfile....
+Indexer.writeDocIdTitlesToFile(outfile)
 
 
 with open(outfile+".sorted","w") as sorted_file:
