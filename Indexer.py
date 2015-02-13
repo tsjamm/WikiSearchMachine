@@ -186,7 +186,7 @@ def mergeWriter(outfile):
                 new_file.write(line)
     
     with open(outfile+".tmp","w") as temp_file:
-        print("tempfile copied and erased :::: Article Count = {0}".format(articleCount))
+        #print("tempfile copied and erased :::: Article Count = {0}".format(articleCount))
 
         
 def writeDocIdTitlesToFile(outfile):

@@ -7,7 +7,7 @@
 # Written for the Spring Semester 2015 IRE Course
 
 import nltk
-nltk.download('punkt')   #Needed for word_tokenize
+#nltk.download('punkt')   #Needed for word_tokenize
 from nltk import PorterStemmer
 from nltk import word_tokenize
 import re
@@ -24,7 +24,7 @@ def getStemmedTokens(text):
     try:
         tokens = nltk.word_tokenize(content)
     except Exception as inst:
-        print type(inst)
+        #print type(inst)
         tokens = text.split(" ")
     #Removing StopWords
     tokens1 = []
