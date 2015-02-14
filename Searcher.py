@@ -7,6 +7,7 @@
 # Written for the Spring Semester 2015 IRE Course
 
 import QueryHandler
+import sys
 from sys import argv
 import operator
 import Indexer
@@ -29,17 +30,21 @@ def getIndexPositionMap():
             
     #print "count of indexPosMap = {0}".format(len(indexPositionMap))
 
+TotalDocNum = 0
 docIDTitleMap = {}
 def getdocIDTitleMap():
+    global TotalDocNum
     with open(infile+".titles","r") as titles_file:
         for line in titles_file:
-            parts = line.split('=')
+            parts = line.strip().split('=')
             if len(parts) == 2:
                 id = parts[0]
                 title = parts[1]
                 docIDTitleMap[id] = title
     #print "count of docs = {0}".format(len(docIDTitleMap))
-TotalDocNum = len(docIDTitleMap)
+    TotalDocNum = len(docIDTitleMap)
+    #print "TotalDocNum = {0}".format(TotalDocNum)
+
 
 def checkInIndexPositionMap(index_file, term):
     if term in indexPositionMap:
@@ -87,6 +92,7 @@ def doSearch(queryObject, numOfResults):
         tTqueryDocList = {}
         for tT in queryObject["tT"]:
             ffo = checkInIndexPositionMap(index_file, tT)
+            #print "tT = {0}, ffo = {1}".format(tT,ffo)
             if len(ffo) > 0:
                 #ffoMap[tT] = ffo
                 DF = len(ffo.keys())
@@ -95,17 +101,21 @@ def doSearch(queryObject, numOfResults):
                     if ffo[docID]["t"] > 0:
                         TF = ffo[docID]["t"]
                         tTqueryDocList[docID] = TF * IDF
+            #print "tTqueryDocList = {0}".format(tTqueryDocList)
         bTqueryDocList = {}
         for bT in queryObject["bT"]:
             ffo = checkInIndexPositionMap(index_file, bT)
+            #print "bT = {0}, ffo = {1}".format(bT,ffo)
             if len(ffo) > 0:
                 #ffoMap[bT] = ffo
                 DF = len(ffo.keys())
                 IDF = TotalDocNum / DF
+                #print "DF = {0} IDF = {1} TotalDocNum = {2}".format(DF,IDF,TotalDocNum)
                 for docID in ffo.keys():
                     if ffo[docID]["b"] > 0:
                         TF = ffo[docID]["b"]
                         bTqueryDocList[docID] = TF * IDF
+            #print "bTqueryDocList = {0}".format(bTqueryDocList)
         cTqueryDocList = {}
         for cT in queryObject["cT"]:
             ffo = checkInIndexPositionMap(index_file, cT)
@@ -141,7 +151,7 @@ def doSearch(queryObject, numOfResults):
                 if doc in iTqueryDocList:
                     TFIDF += iTqueryDocList[doc]*0.4
                 if doc in cTqueryDocList:
-                    TFIDF += cTqueryDocList[doc]*0.4
+                    TFIDF += cTqueryDocList[doc]*0.6
                 if doc in bTqueryDocList:
                     TFIDF += bTqueryDocList[doc]*0.2
                 if doc in tTqueryDocList:
@@ -159,19 +169,33 @@ def doSearch(queryObject, numOfResults):
                 tfidfDOCMap[doc] = TFIDF
         
         sorted_tuples = getSortedTuples(tfidfDOCMap)
+        #print sorted_tuples
         sorted_tuples.reverse()
+        #print sorted_tuples
         toReturnList = []
         topNtuples = sorted_tuples[:numOfResults]
         for pair in topNtuples:
             toReturnList.append(pair[0])
+        #print toReturnList
         return toReturnList
     return []
 
 
 getIndexPositionMap()
 getdocIDTitleMap()
-queryObject = QueryHandler.parseQuery("t:roann")
-listOfDocIDs = doSearch(queryObject,10)
+#print "TotalDocNum = {0}".format(TotalDocNum)
 
-for doc in listOfDocIDs:
-    print docIDTitleMap[doc]
+f = sys.stdin
+queries =  []
+for line in f.readlines():
+    queries.append(line.strip())
+queryNo = int(queries[0])
+queries = queries[1:]
+
+for query in queries:
+    queryObject = QueryHandler.parseQuery(query)
+    listOfDocIDs = doSearch(queryObject,10)
+    print "Query = {0}".format(query)
+    for doc in listOfDocIDs:
+        print docIDTitleMap[doc]
+    print ""

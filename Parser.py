@@ -26,6 +26,7 @@ Indexer.doInit(outfile)
 #sax.parse("sampleXML.xml", WikiContentHandler())
 sax.parse(infile, WikiContentHandler(outfile))
 Indexer.mergeWriter(outfile) #This writes to outfile....
+#Indexer.linearWriter(outfile)
 Indexer.writeDocIdTitlesToFile(outfile)
 
 

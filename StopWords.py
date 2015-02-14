@@ -8,7 +8,7 @@
 
 StopWordsList = []    
 
-print("Loading Stopwords from file into memory")
+#print("Loading Stopwords from file into memory")
 with open("stopwords.txt") as input_file:
     for input_line_raw in input_file:
         # print type(input_line_raw)

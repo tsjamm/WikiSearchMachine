@@ -55,8 +55,9 @@ def checkTermFreqMapSizeAndWrite(outfile):
     #if len(TermFreqMap) > 10000:
         #IndexWriter().mergeWriter()
     global toDumpCount
-    if toDumpCount >= 5000:
+    if toDumpCount >= 2000:
         mergeWriter(outfile)
+        #linearWriter(outfile)
         toDumpCount = 0
         
 
@@ -117,11 +118,26 @@ def getFOFromLine(fline):
         matches = re.finditer(freq_string_detection, fstring)
         if matches:
             for match in matches:
-                total = int(match.group(1))
-                title = int(match.group(2))
-                body = int(match.group(3))
-                cat = int(match.group(4))
-                infob = int(match.group(5))
+                total = 0
+                total_match = match.group(1)
+                if total_match != "":
+                    total = int(total_match)
+                title = 0
+                title_match = match.group(2)
+                if title_match != "":
+                    title = int(title_match)
+                body = 0
+                body_match = match.group(3)
+                if body_match != "":
+                    body = int(body_match)
+                cat = 0
+                cat_match = match.group(4)
+                if cat_match != "":
+                    cat = int(cat_match)
+                infob = 0
+                infob_match = match.group(5)
+                if infob_match != "":
+                    infob = int(infob_match)
                 freq_doc_obj["t"] = title #title
                 freq_doc_obj["b"] = body #body
                 freq_doc_obj["c"] = cat #cat
@@ -141,6 +157,33 @@ def removeMFO(word):
     if word in TermFreqMap:
         del TermFreqMap[word]
 
+linearWriterCount = 0
+def linearWriter(outfile):
+    global linearWriterCount
+    linearWriterCount += 1
+    with open("{0}.tmp{1}".format(outfile,linearWriterCount),"w") as temp_file:
+        for word in TermFreqMap:
+            fo = TermFreqMap[word]
+            toWrite = u"" + word + "=" + getFOString(fo)
+            temp_file.write(toWrite.encode('utf-8'))
+        TermFreqMap.clear()
+    print("tempfile {0} created :::: Article Count = {1}".format(linearWriterCount,articleCount))
+'''
+def linearMerger(outfile):
+    global linearWriterCount
+    with open(outfile+".tmp","w") as temp_file:
+        for i in xrange(1,linearWriterCount+1):
+            with open("{0}.tmp{1}".format(outfile,i),"r") as old_file:
+                for line in old_file:
+                    parts = line.split('=')
+                    if len(parts) == 2:
+                        word = parts[0]
+                        ffo = getFOFromLine(parts[1])
+                        cfo = getNewFO(word, ffo)
+                        removeMFO(word)
+                        toWrite = u"" + word + "=" + getFOString(cfo)
+                        temp_file.write(toWrite.encode('utf-8'))
+'''        
 def mergeWriter(outfile):
     with open(outfile+".tmp","w") as temp_file:
         with open(outfile,"r") as old_file:
@@ -151,34 +194,13 @@ def mergeWriter(outfile):
                     ffo = getFOFromLine(parts[1])
                     cfo = getNewFO(word, ffo)
                     removeMFO(word)
-                    toWrite = u"" + word + "="
-                    for did in cfo:
-                        toWrite += did+":"
-                        fdo = cfo[did]
-                        tfreq = fdo["t"]
-                        bfreq = fdo["b"]
-                        cfreq = fdo["c"]
-                        ifreq = fdo["i"]
-                        total_freq = tfreq+bfreq+cfreq+ifreq
-                        toWrite += "{0}t{1}b{2}c{3}i{4};".format(total_freq,tfreq,bfreq,cfreq,ifreq)
-                    toWrite += "\n"
+                    toWrite = u"" + word + "=" + getFOString(cfo)
                     temp_file.write(toWrite.encode('utf-8'))
         for word in TermFreqMap:
-            toWrite = u"" + word + "="
             fo = TermFreqMap[word]
-            for did in fo:
-                toWrite += did+":"
-                fdo = fo[did]
-                tfreq = fdo["t"]
-                bfreq = fdo["b"]
-                cfreq = fdo["c"]
-                ifreq = fdo["i"]
-                total_freq = tfreq+bfreq+cfreq+ifreq
-                toWrite += "{0}t{1}b{2}c{3}i{4};".format(total_freq,tfreq,bfreq,cfreq,ifreq)
-            toWrite += "\n"
+            toWrite = u"" + word + "=" + getFOString(fo)
             temp_file.write(toWrite.encode('utf-8'))
         TermFreqMap.clear()
-        
     
     with open(outfile+".tmp","r") as temp_file:
         with open(outfile,"w") as new_file:
@@ -186,8 +208,36 @@ def mergeWriter(outfile):
                 new_file.write(line)
     
     with open(outfile+".tmp","w") as temp_file:
-        #print("tempfile copied and erased :::: Article Count = {0}".format(articleCount))
+        print("tempfile copied and erased :::: Article Count = {0}".format(articleCount))
 
+def getFOString(fo):
+    toWrite = u""
+    for did in fo:
+        toWrite += did+":"
+        fdo = fo[did]
+        tfreq = fdo["t"]
+        bfreq = fdo["b"]
+        cfreq = fdo["c"]
+        ifreq = fdo["i"]
+        total_freq = tfreq+bfreq+cfreq+ifreq
+        if total_freq != 0 :
+            toWrite += "{0}".format(total_freq)
+        toWrite += "t"
+        if tfreq != 0 :
+            toWrite += "{0}".format(tfreq)
+        toWrite += "b"
+        if bfreq != 0 :
+            toWrite += "{0}".format(bfreq)
+        toWrite += "c"
+        if cfreq != 0 :
+            toWrite += "{0}".format(cfreq)
+        toWrite += "i"
+        if ifreq != 0 :
+            toWrite += "{0}".format(ifreq)
+        toWrite += ";"
+        #toWrite += "{0}t{1}b{2}c{3}i{4};".format(total_freq,tfreq,bfreq,cfreq,ifreq)
+    toWrite += "\n"
+    return toWrite
         
 def writeDocIdTitlesToFile(outfile):
     with open(outfile+".titles","w") as titles_file:
