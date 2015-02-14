@@ -9,6 +9,8 @@
 import re
 import TokenStemmer
 import os.path
+import operator
+import bz2
 
 TermFreqMap = {}
 DocumentIDTitleMap = {}
@@ -55,9 +57,9 @@ def checkTermFreqMapSizeAndWrite(outfile):
     #if len(TermFreqMap) > 10000:
         #IndexWriter().mergeWriter()
     global toDumpCount
-    if toDumpCount >= 2000:
-        mergeWriter(outfile)
-        #linearWriter(outfile)
+    if toDumpCount >= 4000:
+        #mergeWriter(outfile)
+        linearWriter(outfile)
         toDumpCount = 0
         
 
@@ -160,30 +162,75 @@ def removeMFO(word):
 linearWriterCount = 0
 def linearWriter(outfile):
     global linearWriterCount
-    linearWriterCount += 1
+    
     with open("{0}.tmp{1}".format(outfile,linearWriterCount),"w") as temp_file:
-        for word in TermFreqMap:
-            fo = TermFreqMap[word]
+        sorted_map = sorted(TermFreqMap.iteritems(), key=operator.itemgetter(0))
+        for tuple in sorted_map:
+            word = tuple[0]
+            fo = tuple[1]
             toWrite = u"" + word + "=" + getFOString(fo)
             temp_file.write(toWrite.encode('utf-8'))
+        '''for word in TermFreqMap:
+            fo = TermFreqMap[word]
+            toWrite = u"" + word + "=" + getFOString(fo)
+            temp_file.write(toWrite.encode('utf-8'))'''
         TermFreqMap.clear()
     print("tempfile {0} created :::: Article Count = {1}".format(linearWriterCount,articleCount))
-'''
+    linearWriterCount += 1
+
+def getSortedTuples(freq_map):
+    sorted_tuples = sorted(freq_map.iteritems(), key=operator.itemgetter(1))
+    return sorted_tuples
+    
 def linearMerger(outfile):
     global linearWriterCount
-    with open(outfile+".tmp","w") as temp_file:
-        for i in xrange(1,linearWriterCount+1):
-            with open("{0}.tmp{1}".format(outfile,i),"r") as old_file:
-                for line in old_file:
-                    parts = line.split('=')
-                    if len(parts) == 2:
-                        word = parts[0]
-                        ffo = getFOFromLine(parts[1])
-                        cfo = getNewFO(word, ffo)
-                        removeMFO(word)
-                        toWrite = u"" + word + "=" + getFOString(cfo)
-                        temp_file.write(toWrite.encode('utf-8'))
-'''        
+    tmpFiles = {}
+    tmpLines = {}
+    tmpWords = {}
+    completedFiles = 0
+    with open(outfile,"w") as new_file:
+        for i in xrange(0,linearWriterCount):
+            tmpFiles[i] = open("{0}.tmp{1}".format(outfile,i),"r")
+            tmpLines[i] = tmpFiles[i].readline()
+            tmpWords[i] = tmpLines[i].split("=")[0]
+        
+        while completedFiles < linearWriterCount:
+            sorted = getSortedTuples(tmpWords)
+            pIndexWord = sorted[0][1]
+            toMergeCount = 1
+            for tuple in sorted:
+                if tuple[1] == pIndexWord:
+                    toMergeCount += 1
+                else:
+                    break
+            top_sorted = sorted[:toMergeCount]
+            toMergeFO = []
+            listOfIndexFileIds = []
+            for tuple in top_sorted:
+                ti = tuple[0]
+                listOfIndexFileIds.append(ti)
+                tline = tmpLines[ti]
+                parts = tline.split('=')
+                if len(parts) == 2:
+                    word = parts[0]
+                    tfo = getFOFromLine(parts[1])
+                    toMergeFO.append(tfo)
+            freqObj = dict((k,v) for d in toMergeFO for (k,v) in d.items())
+            toWrite = u"" + pIndexWord + "=" + getFOString(freqObj)
+            new_file.write(toWrite.encode('utf-8'))
+            for ti in listOfIndexFileIds:
+                nextLine = tmpFiles[ti].readline()
+                if nextLine == "":
+                    completedFiles += 1
+                    del tmpWords[ti]
+                else:
+                    tmpLines[ti] = nextLine
+                    tmpWords[ti] = tmpLines[ti].split("=")[0]
+        for f in tmpFiles:
+            tmpFiles[f].close()
+    #with open(outfile+".indexFileCount","w") as temp_file:
+        #temp_file.write("{0}".format(linearWriterCount))
+      
 def mergeWriter(outfile):
     with open(outfile+".tmp","w") as temp_file:
         with open(outfile,"r") as old_file:
@@ -243,3 +290,31 @@ def writeDocIdTitlesToFile(outfile):
     with open(outfile+".titles","w") as titles_file:
         for docid in DocumentIDTitleMap.keys():
             titles_file.write("{0}={1}\n".format(docid,DocumentIDTitleMap[docid]))
+
+def writeIndexPartFiles(outfile):
+    wordCounter = 0
+    indexCounter = 0
+    indexWordMap = {}
+    with open(outfile,"r") as uncompressed_file:
+        #global wordCounter
+        #global indexCounter
+        #ipartF = open("{0}.index{1}".format(outfile,indexCounter),"w")
+        ipartF = bz2.BZ2File("{0}.index{1}.bz2".format(outfile,indexCounter), 'wb', compresslevel=9)
+        for line in uncompressed_file:
+            wordCounter += 1
+            if wordCounter == 1:
+                parts = line.split("=")
+                word = parts[0]
+                indexWordMap[indexCounter] = word
+            ipartF.write(line)
+            if wordCounter >= 20000 :
+                wordCounter = 0
+                ipartF.close()
+                indexCounter += 1
+                ipartF = bz2.BZ2File("{0}.index{1}.bz2".format(outfile,indexCounter), 'wb', compresslevel=9)
+        ipartF.close()
+    #with open(outfile+".indexFileCount","w") as temp_file:
+        #temp_file.write("{0}".format(indexCounter))
+    with open(outfile+".indexWordMap","w") as temp_file:
+        for index in indexWordMap.keys():
+            temp_file.write("{0}={1}\n".format(index,indexWordMap[index]))

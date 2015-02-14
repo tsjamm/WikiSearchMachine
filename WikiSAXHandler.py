@@ -87,7 +87,8 @@ class WikiArticle(object):
             self.text = self.text[0:start_pos] + " " + self.text[end_pos+1:]
             #print("self.text = {0}".format(self.text))
             #self.infobox_string = self.removeCite(self.infobox_string)
-            self.infobox_string = self.infobox_string.replace("&gt;",">").replace("&lt;", "<").replace("&amp;", "&").replace("<ref.*?>.*?</ref>", " ").replace("</?.*?>", " ")
+            self.infobox_string = re.sub(u'<ref.*?>.*?</ref>|</?.*?>',' ',self.infobox_string)
+            self.infobox_string = self.infobox_string.replace("&gt;",">").replace("&lt;", "<").replace("&amp;", "&") #.replace("<ref.*?>.*?</ref>", " ").replace("</?.*?>", " ")
             
             new_line_splits = self.infobox_string.split("\n")
             if new_line_splits:
@@ -101,7 +102,8 @@ class WikiArticle(object):
                 gt_mark_find = temp.find("<!")
                 if gt_mark_find > 0 :
                     temp = temp[0:gt_mark_find]
-                temp = temp.replace("{{infobox", "").replace("\n", "").replace("#", "").replace("_"," ").strip()
+                temp = re.sub(u'{{infobox|\\n|#|_', ' ', temp).strip()
+                #temp = temp.replace("{{infobox", "").replace("\n", "").replace("#", "").replace("_"," ").strip()
                 self.infobox_type = temp
             for str in new_line_splits:
                 if str.find("=") < 0 :
@@ -121,9 +123,10 @@ class WikiArticle(object):
                         if len(key_val) != 2 :
                             continue
                         
-                        key = key_val[0].replace("|", "").replace("?", "").replace("{", "").replace("}", "").replace("[", "").replace("]", "").strip().lower()   
-                        val = key_val[1].replace("[", "").replace("{", "").replace("}", "").replace("[", "").replace("]", "").strip().lower()
-                        
+                        key = re.sub(u'[|?{}[\]]+', ' ', key_val[0]).strip().lower()
+                        #key = key_val[0].replace("|", "").replace("?", "").replace("{", "").replace("}", "").replace("[", "").replace("]", "").strip().lower()
+                        val = re.sub(u'[|?{}[\]]+', ' ', key_val[1]).strip().lower()
+                        #val = key_val[1].replace("|", "").replace("{", "").replace("}", "").replace("[", "").replace("]", "").strip().lower()
                         self.infobox[key] = val
             # print("length of infobox keys = {0}".format(len(self.infobox)))
             # for k in self.infobox:
@@ -153,11 +156,12 @@ class WikiArticle(object):
         return string_to_strip
     
     def getInfoBoxValuesString(self):
-        ib_val_string = ""
+        '''ib_val_string = ""
         for key in self.infobox:
             ib_val_string += re.sub(u'[^a-zA-Z]+',' ',self.infobox[key])
             ib_val_string += " "
-        self.infobox_values_string = ib_val_string
+        self.infobox_values_string = ib_val_string'''
+        self.infobox_values_string = ''.join(self.infobox.values())
     
     def getInfoBoxType(self):
         if self.infobox_string:
@@ -199,15 +203,15 @@ class WikiArticle(object):
             #print(link)
     
     def makeTextAlphaNumeric(self):
-        self.text = re.sub(u'[^a-zA-Z0-9]+', ' ', self.text)
+        #self.text = re.sub(u'[^a-zA-Z0-9]+', ' ', self.text)
         self.title = re.sub(u'[^a-zA-Z0-9]+', ' ', self.title)
-        for key in self.infobox:
+        '''for key in self.infobox:
             self.infobox[key] = re.sub(u'[^a-zA-Z0-9]+',' ',self.infobox[key])
         newCats = []
         for cat in self.categories:
             cat = re.sub(u'[^a-zA-Z0-9]+',' ',cat)
             newCats.append(cat)
-        self.categories = newCats
+        self.categories = newCats'''
         
     
 class WikiContentHandler(sax.ContentHandler):
@@ -243,7 +247,7 @@ class WikiContentHandler(sax.ContentHandler):
         if name == "id":
             if self.parent_element == "page":
                 self.current_article.id = to_store
-            if self.parent_element == "revision":
+            '''if self.parent_element == "revision":
                 self.current_article.revision_id = to_store
             if self.parent_element == "contributer":
                 self.current_article.contributer_id = to_store
@@ -254,7 +258,7 @@ class WikiContentHandler(sax.ContentHandler):
         if name == "minor":
             self.current_article.minor = to_store
         if name == "comment":
-            self.current_article.comment = to_store
+            self.current_article.comment = to_store'''
         if name == "text":
             self.current_article.text = to_store
                 

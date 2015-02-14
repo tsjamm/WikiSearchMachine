@@ -11,6 +11,8 @@ import sys
 from sys import argv
 import operator
 import Indexer
+import bisect
+import bz2
 
 script, infile = argv
 
@@ -45,6 +47,19 @@ def getdocIDTitleMap():
     TotalDocNum = len(docIDTitleMap)
     #print "TotalDocNum = {0}".format(TotalDocNum)
 
+indexFileCount = 0
+indexFileWordMap = {}
+def getIndexFileWordMap():
+    global indexFileCount
+    with open(infile+".indexWordMap","r") as temp_file:
+        for line in temp_file:
+            parts = line.strip().split('=')
+            if len(parts) == 2:
+                index = parts[1]
+                word = parts[0]
+                indexFileWordMap[index] = word
+    indexFileCount = len(indexFileWordMap)
+
 
 def checkInIndexPositionMap(index_file, term):
     if term in indexPositionMap:
@@ -58,6 +73,27 @@ def checkInIndexPositionMap(index_file, term):
             return ffo
     return {}
 
+def checkInIndexFileWordMap(term):
+    print "term is {0}".format(term)
+    sortedKeys = sorted(indexFileWordMap.keys())
+    print "sortedKeys = {0}".format(sortedKeys)
+    pos = bisect.bisect(sortedKeys,term)
+    if pos > 0:
+        pos = pos - 1
+    key = sortedKeys[pos]
+    index = indexFileWordMap[key]
+    print "key = {0} and index = {1}".format(key,index)
+    with bz2.BZ2File("{0}.index{1}.bz2".format(infile,index), 'rb', compresslevel=9) as ipartF:
+        print "checking file {0}.index{1}.bz2".format(infile,index)
+        for line in ipartF:
+            if line.startswith(term):
+                parts = line.strip().split("=")
+                if len(parts) == 2:
+                    word = parts[0]
+                    ffo = Indexer.getFOFromLine(parts[1])
+                    return ffo
+    return {}
+
 def intersectLists(lists):
     if len(lists)==0:
         return []
@@ -69,6 +105,8 @@ def intersectLists(lists):
         if len(l) != 0:
             new_lists.append(l)
     #print new_lists
+    if len(new_lists)==0:
+        return []
     return list(reduce(lambda x,y: set(x)&set(y),new_lists))
 
 def getSortedTuples(freq_map):
@@ -81,7 +119,8 @@ def doSearch(queryObject, numOfResults):
     with open(infile,"rb") as index_file:
         gTqueryDocList = {}
         for gT in queryObject["gT"]:
-            ffo = checkInIndexPositionMap(index_file, gT)
+            #ffo = checkInIndexPositionMap(index_file, gT)
+            ffo = checkInIndexFileWordMap(gT)
             if len(ffo) > 0:
                 #ffoMap[gT] = ffo
                 DF = len(ffo.keys())
@@ -91,7 +130,8 @@ def doSearch(queryObject, numOfResults):
                     gTqueryDocList[docID] = TF * IDF
         tTqueryDocList = {}
         for tT in queryObject["tT"]:
-            ffo = checkInIndexPositionMap(index_file, tT)
+            #ffo = checkInIndexPositionMap(index_file, tT)
+            ffo = checkInIndexFileWordMap(tT)
             #print "tT = {0}, ffo = {1}".format(tT,ffo)
             if len(ffo) > 0:
                 #ffoMap[tT] = ffo
@@ -104,7 +144,8 @@ def doSearch(queryObject, numOfResults):
             #print "tTqueryDocList = {0}".format(tTqueryDocList)
         bTqueryDocList = {}
         for bT in queryObject["bT"]:
-            ffo = checkInIndexPositionMap(index_file, bT)
+            #ffo = checkInIndexPositionMap(index_file, bT)
+            ffo = checkInIndexFileWordMap(bT)
             #print "bT = {0}, ffo = {1}".format(bT,ffo)
             if len(ffo) > 0:
                 #ffoMap[bT] = ffo
@@ -118,7 +159,8 @@ def doSearch(queryObject, numOfResults):
             #print "bTqueryDocList = {0}".format(bTqueryDocList)
         cTqueryDocList = {}
         for cT in queryObject["cT"]:
-            ffo = checkInIndexPositionMap(index_file, cT)
+            #ffo = checkInIndexPositionMap(index_file, cT)
+            ffo = checkInIndexFileWordMap(cT)
             if len(ffo) > 0:
                 #ffoMap[cT] = ffo
                 DF = len(ffo.keys())
@@ -129,7 +171,8 @@ def doSearch(queryObject, numOfResults):
                         cTqueryDocList[docID] = TF * IDF
         iTqueryDocList = {}
         for iT in queryObject["iT"]:
-            ffo = checkInIndexPositionMap(index_file, iT)
+            #ffo = checkInIndexPositionMap(index_file, iT)
+            ffo = checkInIndexFileWordMap(iT)
             if len(ffo) > 0:
                 #ffoMap[iT] = ffo
                 DF = len(ffo.keys())
@@ -181,9 +224,11 @@ def doSearch(queryObject, numOfResults):
     return []
 
 
-getIndexPositionMap()
+#getIndexPositionMap()
+getIndexFileWordMap()
 getdocIDTitleMap()
-#print "TotalDocNum = {0}".format(TotalDocNum)
+
+
 
 f = sys.stdin
 queries =  []

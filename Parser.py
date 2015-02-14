@@ -22,22 +22,20 @@ from WikiSAXHandler import WikiContentHandler
 script, infile, outfile = argv
 
 start = int(round(time.time()*1000))
+
 Indexer.doInit(outfile)
-#sax.parse("sampleXML.xml", WikiContentHandler())
-sax.parse(infile, WikiContentHandler(outfile))
-Indexer.mergeWriter(outfile) #This writes to outfile....
-#Indexer.linearWriter(outfile)
+
+if infile.endswith(".bz2"):
+    with bz2.BZ2File(infile, 'rb', compresslevel=9) as compressed_infile:
+        sax.parse(compressed_infile, WikiContentHandler(outfile))
+else:
+    sax.parse(infile, WikiContentHandler(outfile))
+
+#Indexer.mergeWriter(outfile) #This writes to outfile.... this one is bad... 
+Indexer.linearWriter(outfile) #This one is good. :)
+Indexer.linearMerger(outfile)
+Indexer.writeIndexPartFiles(outfile)
 Indexer.writeDocIdTitlesToFile(outfile)
-
-
-with open(outfile+".sorted","w") as sorted_file:
-    with open(outfile,"r") as unsorted_file:
-        for line in sorted(unsorted_file, key = str.lower):
-            sorted_file.write(line)
-
-with open(outfile+".sorted", 'rb') as toCompress:
-    with bz2.BZ2File(outfile+".bz2", 'wb', compresslevel=9) as compressed:
-        copyfileobj(toCompress, compressed)
 
 end = int(round(time.time()*1000))
 

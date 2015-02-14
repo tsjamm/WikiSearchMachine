@@ -12,13 +12,19 @@ from nltk import PorterStemmer
 from nltk import word_tokenize
 import re
 import StopWords
+import gc
 
 primitive_token_detection = re.compile(u'[^\s]+')
 primitive_word_detection = re.compile(u'\A[\w-]+\Z')
 primitive_pipe_detection = re.compile(u'\|')
 
+#gc.disable()
+
 def getStemmedTokens(text):
-    content = text.lower()
+    #Case-Folding
+    lowerText = text.lower()
+    #Only Alphabetic / Alphanumeric characters.....
+    content = re.sub(u'[^a-zA-Z0-9]+', ' ', lowerText)
     #Tokenizing
     tokens = []
     try:
