@@ -188,7 +188,7 @@ def linearMerger(outfile):
     tmpLines = {}
     tmpWords = {}
     completedFiles = 0
-    with open(outfile,"w") as new_file:
+    with open(outfile+".tmp","w") as new_file:
         for i in xrange(0,linearWriterCount):
             tmpFiles[i] = open("{0}.tmp{1}".format(outfile,i),"r")
             tmpLines[i] = tmpFiles[i].readline()
@@ -295,7 +295,7 @@ def writeIndexPartFiles(outfile):
     wordCounter = 0
     indexCounter = 0
     indexWordMap = {}
-    with open(outfile,"r") as uncompressed_file:
+    with open(outfile+".tmp","r") as uncompressed_file:
         #global wordCounter
         #global indexCounter
         #ipartF = open("{0}.index{1}".format(outfile,indexCounter),"w")

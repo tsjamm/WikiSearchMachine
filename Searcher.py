@@ -74,17 +74,17 @@ def checkInIndexPositionMap(index_file, term):
     return {}
 
 def checkInIndexFileWordMap(term):
-    print "term is {0}".format(term)
+    #print "term is {0}".format(term)
     sortedKeys = sorted(indexFileWordMap.keys())
-    print "sortedKeys = {0}".format(sortedKeys)
+    #print "sortedKeys = {0}".format(sortedKeys)
     pos = bisect.bisect(sortedKeys,term)
     if pos > 0:
         pos = pos - 1
     key = sortedKeys[pos]
     index = indexFileWordMap[key]
-    print "key = {0} and index = {1}".format(key,index)
+    #print "key = {0} and index = {1}".format(key,index)
     with bz2.BZ2File("{0}.index{1}.bz2".format(infile,index), 'rb', compresslevel=9) as ipartF:
-        print "checking file {0}.index{1}.bz2".format(infile,index)
+        #print "checking file {0}.index{1}.bz2".format(infile,index)
         for line in ipartF:
             if line.startswith(term):
                 parts = line.strip().split("=")
