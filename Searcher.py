@@ -13,6 +13,7 @@ import operator
 import Indexer
 import bisect
 import bz2
+import time
 
 script, infile = argv
 
@@ -224,6 +225,8 @@ def doSearch(queryObject, numOfResults):
     return []
 
 
+start = int(round(time.time()*1000))
+
 #getIndexPositionMap()
 getIndexFileWordMap()
 getdocIDTitleMap()
@@ -244,3 +247,9 @@ for query in queries:
     for doc in listOfDocIDs:
         print docIDTitleMap[doc]
     print ""
+    
+end = int(round(time.time()*1000))
+with open(infile+".doneSearch","w") as done_file:
+    toPrint = "Process is complete. Time Taken in milliseconds = {0}".format((end-start))
+    print toPrint
+    done_file.write(toPrint)

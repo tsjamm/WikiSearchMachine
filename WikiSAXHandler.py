@@ -89,6 +89,7 @@ class WikiArticle(object):
             #self.infobox_string = self.removeCite(self.infobox_string)
             self.infobox_string = re.sub(u'<ref.*?>.*?</ref>|</?.*?>',' ',self.infobox_string)
             self.infobox_string = self.infobox_string.replace("&gt;",">").replace("&lt;", "<").replace("&amp;", "&") #.replace("<ref.*?>.*?</ref>", " ").replace("</?.*?>", " ")
+            #self.infobox_values_string = self.infobox_string
             
             new_line_splits = self.infobox_string.split("\n")
             if new_line_splits:
@@ -156,11 +157,6 @@ class WikiArticle(object):
         return string_to_strip
     
     def getInfoBoxValuesString(self):
-        '''ib_val_string = ""
-        for key in self.infobox:
-            ib_val_string += re.sub(u'[^a-zA-Z]+',' ',self.infobox[key])
-            ib_val_string += " "
-        self.infobox_values_string = ib_val_string'''
         self.infobox_values_string = ''.join(self.infobox.values())
     
     def getInfoBoxType(self):
@@ -205,6 +201,7 @@ class WikiArticle(object):
     def makeTextAlphaNumeric(self):
         #self.text = re.sub(u'[^a-zA-Z0-9]+', ' ', self.text)
         self.title = re.sub(u'[^a-zA-Z0-9]+', ' ', self.title)
+        #self.infobox_values_string = re.sub(u'[^a-zA-Z]+',' ',self.infobox_values_string)
         '''for key in self.infobox:
             self.infobox[key] = re.sub(u'[^a-zA-Z0-9]+',' ',self.infobox[key])
         newCats = []
@@ -222,7 +219,8 @@ class WikiContentHandler(sax.ContentHandler):
         self.parent_element = ""
         self.current_element = ""
         self.current_article = {}
-        self.current_characters = ""
+        #self.current_characters = ""
+        self.current_lines = []
         self.outfile = outfile
     
     def startElement(self, name, attrs):
@@ -231,7 +229,8 @@ class WikiContentHandler(sax.ContentHandler):
         if self.current_element:
             self.parent_element = self.current_element
         self.current_element = name
-        self.current_characters = ""
+        #self.current_characters = ""
+        self.current_lines = []
         if name == "page":
             self.current_article = WikiArticle()
     
@@ -240,29 +239,17 @@ class WikiContentHandler(sax.ContentHandler):
             self.current_article.processArticle()    #### This is where the processing for the article starts........starts
             Indexer.doIndex(self.current_article, self.outfile)
             
-            
-        to_store = self.current_characters.strip()
+        to_store = ""
+        if len(self.current_lines):
+            to_store = (''.join(self.current_lines)).strip()
+        #to_store = self.current_characters.strip()
         if name == "title":
             self.current_article.title = to_store
         if name == "id":
             if self.parent_element == "page":
                 self.current_article.id = to_store
-            '''if self.parent_element == "revision":
-                self.current_article.revision_id = to_store
-            if self.parent_element == "contributer":
-                self.current_article.contributer_id = to_store
-        if name == "timestamp":
-            self.current_article.timestamp = to_store
-        if name == "username":
-            self.current_article.contributer_username = to_store
-        if name == "minor":
-            self.current_article.minor = to_store
-        if name == "comment":
-            self.current_article.comment = to_store'''
         if name == "text":
             self.current_article.text = to_store
-                
-        #print("The Element Popped = {0}".format(name))
         self.elements.pop()
         if self.elements:
             self.current_element = self.parent_element
@@ -274,10 +261,7 @@ class WikiContentHandler(sax.ContentHandler):
             self.current_element = ""
     
     def characters(self, content):
-        #unicode_content = unicode(content,"utf-8")
-        # print(type(content))
-        # unicode_content = content.encode("utf-8").strip()
-        # print(type(unicode_content))
         if content and self.current_element:
-            #print("Characters = {0}".format(unicode_content))
-            self.current_characters += content + " "
+            #self.current_characters += content + " "
+            self.current_lines.append(content)
+            self.current_lines.append(" ")

@@ -11,12 +11,19 @@ import TokenStemmer
 import os.path
 import operator
 import bz2
+import time
 
 TermFreqMap = {}
 DocumentIDTitleMap = {}
 freq_string_detection = re.compile("([0-9]*)t([0-9]*)b([0-9]*)c([0-9]*)i([0-9]*)")
 articleCount = 0
 toDumpCount = 0
+
+profileTime = 0
+profileTime1 = 0
+profileTime2 = 0
+profileTime3 = 0
+profileTime4 = 0
 
 def doInit(outfile):
     if not os.path.exists(outfile):
@@ -35,23 +42,44 @@ def doIndex(wikiArticle, outfile):
     DocumentIDTitleMap[wikiArticle.id] = wikiArticle.title
     buildTermFreqMap(wikiArticle)
     checkTermFreqMapSizeAndWrite(outfile)
+    
+    
 
 def buildTermFreqMap(wikiArticle):
+    global profileTime, profileTime1, profileTime2, profileTime3
+    profileStart = int(round(time.time()*1000))
     title_tokens = TokenStemmer.getStemmedTokens(wikiArticle.title)
     for token in title_tokens:
-        putTitleTokenInTermFreqMap(token, wikiArticle.id)
+        #putTitleTokenInTermFreqMap(token, wikiArticle.id)
+        checkIfTokenInTermFreqMap(token,wikiArticle.id)
+        TermFreqMap[token][wikiArticle.id]["t"] += 1
+    profileMiddle1 = int(round(time.time()*1000))
+    profileTime += profileMiddle1-profileStart
     #link_tokens = wikiArticle.external_links
     #for token in link_tokens:
     #    putTokenInTermFreqMap(token)
     cat_tokens = TokenStemmer.getStemmedTokens(getStringFromListofStrings(wikiArticle.categories))
     for token in cat_tokens:
-        putCatTokenInTermFreqMap(token, wikiArticle.id)
+        #putCatTokenInTermFreqMap(token, wikiArticle.id)
+        checkIfTokenInTermFreqMap(token,wikiArticle.id)
+        TermFreqMap[token][wikiArticle.id]["c"] += 1
+    profileMiddle2 = int(round(time.time()*1000))
+    profileTime1 += profileMiddle2 - profileMiddle1
     ib_tokens = TokenStemmer.getStemmedTokens(wikiArticle.infobox_values_string)
     for token in ib_tokens:
-        putIBTokenInTermFreqMap(token, wikiArticle.id)
+        #putIBTokenInTermFreqMap(token, wikiArticle.id)
+        checkIfTokenInTermFreqMap(token,wikiArticle.id)
+        TermFreqMap[token][wikiArticle.id]["i"] += 1
+    profileMiddle3 = int(round(time.time()*1000))
+    profileTime2 += profileMiddle3 - profileMiddle2
     text_tokens = TokenStemmer.getStemmedTokens(wikiArticle.text)
     for token in text_tokens:
-        putBodyTokenInTermFreqMap(token, wikiArticle.id)
+        #putBodyTokenInTermFreqMap(token, wikiArticle.id)
+        checkIfTokenInTermFreqMap(token,wikiArticle.id)
+        TermFreqMap[token][wikiArticle.id]["b"] += 1
+    profileEnd = int(round(time.time()*1000))
+    profileTime3 += profileEnd - profileMiddle3
+    
 
 def checkTermFreqMapSizeAndWrite(outfile):
     #if len(TermFreqMap) > 10000:
@@ -64,7 +92,8 @@ def checkTermFreqMapSizeAndWrite(outfile):
         
 
 def checkIfTokenInTermFreqMap(token, wAid):
-    
+    global profileTime4
+    profileStart = int(round(time.time()*1000))
     if token not in TermFreqMap:
         freq_obj = {}
         TermFreqMap[token] = freq_obj
@@ -75,6 +104,8 @@ def checkIfTokenInTermFreqMap(token, wAid):
         freq_doc_obj["c"] = 0 #cat
         freq_doc_obj["i"] = 0 #infobox
         TermFreqMap[token][wAid] = freq_doc_obj
+    profileEnd = int(round(time.time()*1000))
+    profileTime4 += profileEnd - profileStart
 
 def putTitleTokenInTermFreqMap(token,wAid):
     checkIfTokenInTermFreqMap(token,wAid)
@@ -93,10 +124,11 @@ def putIBTokenInTermFreqMap(token,wAid):
     TermFreqMap[token][wAid]["i"] += 1
 
 def getStringFromListofStrings(list):
-    toReturn = ""
-    for str in list:
-        toReturn += str + " "
-    return toReturn
+    #toReturn = ""
+    #for str in list:
+    #    toReturn += str + " "
+    #return toReturn
+    return ''.join(list)
         
 
         
@@ -318,3 +350,4 @@ def writeIndexPartFiles(outfile):
     with open(outfile+".indexWordMap","w") as temp_file:
         for index in indexWordMap.keys():
             temp_file.write("{0}={1}\n".format(index,indexWordMap[index]))
+            
