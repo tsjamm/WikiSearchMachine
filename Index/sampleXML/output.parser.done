@@ -1,0 +1,16 @@
+sax.parse completed. Time Taken in milliseconds = 13
+Index.profileTime in milliseconds = 0
+Index.profileTime1 in milliseconds = 0
+Index.profileTime2 in milliseconds = 2
+Index.profileTime3 in milliseconds = 6
+Index.profileTime4 in milliseconds = 1
+TokenStemmer.profileTime in milliseconds = 0
+TokenStemmer.profileTime1 in milliseconds = 0
+TokenStemmer.profileTime2 in milliseconds = 0
+TokenStemmer.profileTime3 in milliseconds = 1
+TokenStemmer.profileTime4 in milliseconds = 6
+Indexer.linearWriter completed. Time Taken in milliseconds = 2
+Indexer.linearMerger completed. Time Taken in milliseconds = 6
+Indexer.writeIndexPartFiles completed. Time Taken in milliseconds = 1
+Indexer.writeDocIdTitlesToFile completed. Time Taken in milliseconds = 0
+Process is complete. Time Taken in milliseconds = 22
