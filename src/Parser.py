@@ -26,7 +26,8 @@ toPrintProfile = ""
 
 start = int(round(time.time()*1000))
 
-#Indexer.doInit(outfile) # This is necessary for mergeWriter, not for k-way
+Indexer.doInit(outfile)
+
 profileStart = int(round(time.time()*1000))
 if infile.endswith(".bz2"):
     with bz2.BZ2File(infile, 'rb', compresslevel=9) as compressed_infile:
@@ -65,10 +66,10 @@ Indexer.writeIndexPartFiles(outfile)
 profileEnd = int(round(time.time()*1000))
 toPrintProfile += "Indexer.writeIndexPartFiles completed. Time Taken in milliseconds = {0}\n".format((profileEnd-profileStart))
 
-profileStart = int(round(time.time()*1000))
-Indexer.writeDocIdTitlesToFile(outfile)
-profileEnd = int(round(time.time()*1000))
-toPrintProfile += "Indexer.writeDocIdTitlesToFile completed. Time Taken in milliseconds = {0}\n".format((profileEnd-profileStart))
+# profileStart = int(round(time.time()*1000))
+# Indexer.writeDocIdTitlesToFile(outfile)
+# profileEnd = int(round(time.time()*1000))
+# toPrintProfile += "Indexer.writeDocIdTitlesToFile completed. Time Taken in milliseconds = {0}\n".format((profileEnd-profileStart))
 
 end = int(round(time.time()*1000))
 

@@ -153,7 +153,7 @@ class WikiArticle(object):
                     break
                 end_pos = end_pos+1
             string_to_strip = string_to_strip[0:start_pos-1] + string_to_strip[end_pos:]
-            return removeCite(string_to_strip)
+            return self.removeCite(string_to_strip)
         return string_to_strip
     
     def getInfoBoxValuesString(self):
@@ -241,7 +241,10 @@ class WikiContentHandler(sax.ContentHandler):
             
         to_store = ""
         if len(self.current_lines):
-            to_store = (''.join(self.current_lines)).strip()
+            try:
+                to_store = (''.join(self.current_lines)).strip()
+            except Exception:
+                print "exception occured at id={0} and title={1}\n {2}".format(self.current_article.id,self.current_article.title,Exception)
         #to_store = self.current_characters.strip()
         if name == "title":
             self.current_article.title = to_store

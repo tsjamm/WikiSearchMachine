@@ -14,7 +14,9 @@ import bz2
 import time
 
 TermFreqMap = {}
-DocumentIDTitleMap = {}
+#DocumentIDTitleMap = {} #This doesnt work so well with memory for 10,000,000 entries :P
+outfile = None
+titles_file = None
 freq_string_detection = re.compile("([0-9]*)t([0-9]*)b([0-9]*)c([0-9]*)i([0-9]*)")
 articleCount = 0
 toDumpCount = 0
@@ -25,13 +27,14 @@ profileTime2 = 0
 profileTime3 = 0
 profileTime4 = 0
 
-def doInit(outfile):
-    if not os.path.exists(outfile):
-        out_file = open(outfile,"w")
-        out_file.close()
-    if not os.path.exists(outfile+".tmp"):
-        temp_file = open(outfile+".tmp","w")
-        temp_file.close()
+def doInit(ofile):
+    global outfile
+    outfile = ofile
+    global titles_file
+    titles_file = open(outfile+".titles","w")
+#     if not os.path.exists(outfile+".tmp"):
+#         temp_file = open(outfile+".tmp","w")
+#         temp_file.close()
 
 
 def doIndex(wikiArticle, outfile):
@@ -39,7 +42,7 @@ def doIndex(wikiArticle, outfile):
     global toDumpCount
     articleCount += 1
     toDumpCount += 1
-    DocumentIDTitleMap[wikiArticle.id] = wikiArticle.title
+    titles_file.write("{0}={1}\n".format(wikiArticle.id,wikiArticle.title))
     buildTermFreqMap(wikiArticle)
     checkTermFreqMapSizeAndWrite(outfile)
     
@@ -123,12 +126,12 @@ def putIBTokenInTermFreqMap(token,wAid):
     checkIfTokenInTermFreqMap(token,wAid)
     TermFreqMap[token][wAid]["i"] += 1
 
-def getStringFromListofStrings(list):
+def getStringFromListofStrings(strlist):
     #toReturn = ""
     #for str in list:
     #    toReturn += str + " "
     #return toReturn
-    return ''.join(list)
+    return ''.join(strlist)
         
 
         
@@ -152,10 +155,10 @@ def getFOFromLine(fline):
         matches = re.finditer(freq_string_detection, fstring)
         if matches:
             for match in matches:
-                total = 0
-                total_match = match.group(1)
-                if total_match != "":
-                    total = int(total_match)
+#                 total = 0
+#                 total_match = match.group(1)
+#                 if total_match != "":
+#                     total = int(total_match)
                 title = 0
                 title_match = match.group(2)
                 if title_match != "":
@@ -197,15 +200,11 @@ def linearWriter(outfile):
     
     with open("{0}.tmp{1}".format(outfile,linearWriterCount),"w") as temp_file:
         sorted_map = sorted(TermFreqMap.iteritems(), key=operator.itemgetter(0))
-        for tuple in sorted_map:
-            word = tuple[0]
-            fo = tuple[1]
-            toWrite = u"" + word + "=" + getFOString(fo)
+        for stuple in sorted_map:
+            word = stuple[0]
+            fo = stuple[1]
+            toWrite = u"{0}={1}".format(word, getFOString(fo))
             temp_file.write(toWrite.encode('utf-8'))
-        '''for word in TermFreqMap:
-            fo = TermFreqMap[word]
-            toWrite = u"" + word + "=" + getFOString(fo)
-            temp_file.write(toWrite.encode('utf-8'))'''
         TermFreqMap.clear()
     print("tempfile {0} created :::: Article Count = {1}".format(linearWriterCount,articleCount))
     linearWriterCount += 1
@@ -227,24 +226,24 @@ def linearMerger(outfile):
             tmpWords[i] = tmpLines[i].split("=")[0]
         
         while completedFiles < linearWriterCount:
-            sorted = getSortedTuples(tmpWords)
-            pIndexWord = sorted[0][1]
+            sortedT = getSortedTuples(tmpWords)
+            pIndexWord = sortedT[0][1]
             toMergeCount = 1
-            for tuple in sorted:
-                if tuple[1] == pIndexWord:
+            for stuple in sortedT:
+                if stuple[1] == pIndexWord:
                     toMergeCount += 1
                 else:
                     break
             top_sorted = sorted[:toMergeCount]
             toMergeFO = []
             listOfIndexFileIds = []
-            for tuple in top_sorted:
-                ti = tuple[0]
+            for stuple in top_sorted:
+                ti = stuple[0]
                 listOfIndexFileIds.append(ti)
                 tline = tmpLines[ti]
                 parts = tline.split('=')
                 if len(parts) == 2:
-                    word = parts[0]
+#                     word = parts[0]
                     tfo = getFOFromLine(parts[1])
                     toMergeFO.append(tfo)
             freqObj = dict((k,v) for d in toMergeFO for (k,v) in d.items())
@@ -318,10 +317,10 @@ def getFOString(fo):
     toWrite += "\n"
     return toWrite
         
-def writeDocIdTitlesToFile(outfile):
-    with open(outfile+".titles","w") as titles_file:
-        for docid in DocumentIDTitleMap.keys():
-            titles_file.write("{0}={1}\n".format(docid,DocumentIDTitleMap[docid]))
+# def writeDocIdTitlesToFile(outfile):
+#     with open(outfile+".titles","w") as titles_file:
+#         for docid in DocumentIDTitleMap.keys():
+#             titles_file.write("{0}={1}\n".format(docid,DocumentIDTitleMap[docid]))
 
 def writeIndexPartFiles(outfile):
     wordCounter = 0
