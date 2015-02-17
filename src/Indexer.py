@@ -88,7 +88,7 @@ def checkTermFreqMapSizeAndWrite(outfile):
     #if len(TermFreqMap) > 10000:
         #IndexWriter().mergeWriter()
     global toDumpCount
-    if toDumpCount >= 4000:
+    if toDumpCount >= 10000:
         #mergeWriter(outfile)
         linearWriter(outfile)
         toDumpCount = 0
@@ -215,26 +215,32 @@ def getSortedTuples(freq_map):
     
 def linearMerger(outfile):
     global linearWriterCount
+    linearMerger(outfile, linearWriterCount)
+    
+def linearMerger(outfile, lWCount):
     tmpFiles = {}
     tmpLines = {}
     tmpWords = {}
     completedFiles = 0
     with open(outfile+".tmp","w") as new_file:
-        for i in xrange(0,linearWriterCount):
+        for i in xrange(0,lWCount):
             tmpFiles[i] = open("{0}.tmp{1}".format(outfile,i),"r")
             tmpLines[i] = tmpFiles[i].readline()
             tmpWords[i] = tmpLines[i].split("=")[0]
-        
-        while completedFiles < linearWriterCount:
+        #print "tmpFilesCount={0}".format(len(tmpFiles))
+        #print "tmpLinesCount={0}".format(len(tmpLines))
+        #print "tmpWordsCount={0}".format(len(tmpWords))
+        while completedFiles < lWCount:
+            #print "completedFiles = {0}".format(completedFiles)
             sortedT = getSortedTuples(tmpWords)
             pIndexWord = sortedT[0][1]
-            toMergeCount = 1
+            toMergeCount = 0
             for stuple in sortedT:
                 if stuple[1] == pIndexWord:
                     toMergeCount += 1
                 else:
                     break
-            top_sorted = sorted[:toMergeCount]
+            top_sorted = sortedT[:toMergeCount]
             toMergeFO = []
             listOfIndexFileIds = []
             for stuple in top_sorted:
@@ -243,16 +249,22 @@ def linearMerger(outfile):
                 tline = tmpLines[ti]
                 parts = tline.split('=')
                 if len(parts) == 2:
-#                     word = parts[0]
-                    tfo = getFOFromLine(parts[1])
-                    toMergeFO.append(tfo)
-            freqObj = dict((k,v) for d in toMergeFO for (k,v) in d.items())
-            toWrite = u"" + pIndexWord + "=" + getFOString(freqObj)
+                    #word = parts[0]
+                    #tfo = getFOFromLine(parts[1])
+                    #toMergeFO.append(tfo)
+                    toMergeFO.append(parts[1])
+            #print len(toMergeFO)
+            #freqObj = dict((k,v) for d in toMergeFO for (k,v) in d.items())
+            #toWrite = u"" + pIndexWord + "=" + getFOString(freqObj)
+            mergedStr = ''.join(toMergeFO)
+            toWrite = u"" + pIndexWord + "=" + mergedStr
+            #print toWrite.encode('utf-8')
             new_file.write(toWrite.encode('utf-8'))
             for ti in listOfIndexFileIds:
                 nextLine = tmpFiles[ti].readline()
                 if nextLine == "":
                     completedFiles += 1
+                    print "linear merger: completedFiles = {0}".format(completedFiles)
                     del tmpWords[ti]
                 else:
                     tmpLines[ti] = nextLine
@@ -260,7 +272,7 @@ def linearMerger(outfile):
         for f in tmpFiles:
             tmpFiles[f].close()
     #with open(outfile+".indexFileCount","w") as temp_file:
-        #temp_file.write("{0}".format(linearWriterCount))
+        #temp_file.write("{0}".format(lWCount))
       
 def mergeWriter(outfile):
     with open(outfile+".tmp","w") as temp_file:
