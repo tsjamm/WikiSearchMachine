@@ -49,7 +49,6 @@ toPrintProfile += "TokenStemmer.profileTime2 in milliseconds = {0}\n".format(Tok
 toPrintProfile += "TokenStemmer.profileTime3 in milliseconds = {0}\n".format(TokenStemmer.profileTime3)
 toPrintProfile += "TokenStemmer.profileTime4 in milliseconds = {0}\n".format(TokenStemmer.profileTime4)
 
-
 #Indexer.mergeWriter(outfile) #This writes to outfile.... this one is bad... 
 profileStart = int(round(time.time()*1000))
 Indexer.linearWriter(outfile) #This one is good. :)
@@ -66,10 +65,10 @@ Indexer.writeIndexPartFiles(outfile)
 profileEnd = int(round(time.time()*1000))
 toPrintProfile += "Indexer.writeIndexPartFiles completed. Time Taken in milliseconds = {0}\n".format((profileEnd-profileStart))
 
-# profileStart = int(round(time.time()*1000))
-# Indexer.writeDocIdTitlesToFile(outfile)
-# profileEnd = int(round(time.time()*1000))
-# toPrintProfile += "Indexer.writeDocIdTitlesToFile completed. Time Taken in milliseconds = {0}\n".format((profileEnd-profileStart))
+profileStart = int(round(time.time()*1000))
+Indexer.writeTitlePartFiles(outfile)
+profileEnd = int(round(time.time()*1000))
+toPrintProfile += "Indexer.writeTitlePartFiles completed. Time Taken in milliseconds = {0}\n".format((profileEnd-profileStart))
 
 end = int(round(time.time()*1000))
 

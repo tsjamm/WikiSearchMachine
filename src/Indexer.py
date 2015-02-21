@@ -215,9 +215,9 @@ def getSortedTuples(freq_map):
     
 def linearMerger(outfile):
     global linearWriterCount
-    linearMerger(outfile, linearWriterCount)
+    linearMergerN(outfile, linearWriterCount)
     
-def linearMerger(outfile, lWCount):
+def linearMergerN(outfile, lWCount):
     tmpFiles = {}
     tmpLines = {}
     tmpWords = {}
@@ -252,12 +252,12 @@ def linearMerger(outfile, lWCount):
                     #word = parts[0]
                     #tfo = getFOFromLine(parts[1])
                     #toMergeFO.append(tfo)
-                    toMergeFO.append(parts[1])
+                    toMergeFO.append(parts[1].strip())
             #print len(toMergeFO)
             #freqObj = dict((k,v) for d in toMergeFO for (k,v) in d.items())
             #toWrite = u"" + pIndexWord + "=" + getFOString(freqObj)
             mergedStr = ''.join(toMergeFO)
-            toWrite = u"" + pIndexWord + "=" + mergedStr
+            toWrite = u"" + pIndexWord + "=" + mergedStr + "\n"
             #print toWrite.encode('utf-8')
             new_file.write(toWrite.encode('utf-8'))
             for ti in listOfIndexFileIds:
@@ -361,4 +361,31 @@ def writeIndexPartFiles(outfile):
     with open(outfile+".indexWordMap","w") as temp_file:
         for index in indexWordMap.keys():
             temp_file.write("{0}={1}\n".format(index,indexWordMap[index]))
-            
+
+def writeTitlePartFiles(outfile):
+    wordCounter = 0
+    indexCounter = 0
+    indexWordMap = {}
+    with open(outfile+".titles","r") as uncompressed_file:
+        #global wordCounter
+        #global indexCounter
+        #ipartF = open("{0}.index{1}".format(outfile,indexCounter),"w")
+        ipartF = bz2.BZ2File("{0}.titles{1}.bz2".format(outfile,indexCounter), 'wb', compresslevel=9)
+        for line in uncompressed_file:
+            wordCounter += 1
+            if wordCounter == 1:
+                parts = line.split("=")
+                word = parts[0]
+                indexWordMap[indexCounter] = word
+            ipartF.write(line)
+            if wordCounter >= 20000 :
+                wordCounter = 0
+                ipartF.close()
+                indexCounter += 1
+                ipartF = bz2.BZ2File("{0}.titles{1}.bz2".format(outfile,indexCounter), 'wb', compresslevel=9)
+        ipartF.close()
+    #with open(outfile+".indexFileCount","w") as temp_file:
+        #temp_file.write("{0}".format(indexCounter))
+    with open(outfile+".titleWordMap","w") as temp_file:
+        for index in indexWordMap.keys():
+            temp_file.write("{0}={1}\n".format(index,indexWordMap[index]))
