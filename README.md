@@ -88,6 +88,13 @@ On Windows, open the command prompt and run:
 You should see the top 10 results available (maximum) per each query
 
 
+## License
+
+MIT/X11
 
 
-(c) 2015 Sai Teja Jammalamadaka
+## Contact
+
+Follow me on [github](https://github.com/users/follow?target=tsjamm), [blog](http://www.tsjamm.com), [twitter](http://twitter.com/tsjamm)
+
+(c)2015 Sai Teja Jammalamadaka
