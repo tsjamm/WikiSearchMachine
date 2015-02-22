@@ -39,7 +39,7 @@ def parseQuery(queryString):
             cT = qT.replace("c:","")
             stemmed = TokenStemmer.getStemmedToken(cT)
             if stemmed != "":
-                tokensObject["cT"].append(sStemmed)
+                tokensObject["cT"].append(stemmed)
                 tokensObject["type"] = "intersection"
             #print "{0} is category query".format(qT)
         elif qT.startswith("i:"):
@@ -53,6 +53,11 @@ def parseQuery(queryString):
             stemmed = TokenStemmer.getStemmedToken(qT)
             if stemmed != "":
                 tokensObject["gT"].append(stemmed)
+                tokensObject["type"] = "intersection"
+                #tokensObject["tT"].append(stemmed)
+                #tokensObject["bT"].append(stemmed)
+                #tokensObject["cT"].append(stemmed)
+                #tokensObject["iT"].append(stemmed)
             #print "{0} is general query".format(qT)
             
     #print(tokensObject)

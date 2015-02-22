@@ -363,6 +363,7 @@ def writeIndexPartFiles(outfile):
             temp_file.write("{0}={1}\n".format(index,indexWordMap[index]))
 
 def writeTitlePartFiles(outfile):
+    articleCounter = 0
     wordCounter = 0
     indexCounter = 0
     indexWordMap = {}
@@ -372,6 +373,7 @@ def writeTitlePartFiles(outfile):
         #ipartF = open("{0}.index{1}".format(outfile,indexCounter),"w")
         ipartF = bz2.BZ2File("{0}.titles{1}.bz2".format(outfile,indexCounter), 'wb', compresslevel=9)
         for line in uncompressed_file:
+            articleCounter +=1
             wordCounter += 1
             if wordCounter == 1:
                 parts = line.split("=")
@@ -386,6 +388,8 @@ def writeTitlePartFiles(outfile):
         ipartF.close()
     #with open(outfile+".indexFileCount","w") as temp_file:
         #temp_file.write("{0}".format(indexCounter))
-    with open(outfile+".titleWordMap","w") as temp_file:
+    with open(outfile+".indexTitleMap","w") as temp_file:
         for index in indexWordMap.keys():
             temp_file.write("{0}={1}\n".format(index,indexWordMap[index]))
+    with open(outfile+".titlesCount","w") as temp_file:
+        temp_file.write("{0}".format(articleCounter))

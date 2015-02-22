@@ -14,6 +14,7 @@ import Indexer
 import bisect
 import bz2
 import time
+import TokenStemmer
 
 script, infile = argv
 
@@ -51,14 +52,16 @@ indexFileTitleCount = 0
 indexFileTitleMap = {}
 sortedIndexFileTitleMapKeys = []
 def getIndexFileTitleMap():
-    global indexFileTitleCount, indexFileTitleMap, sortedIndexFileTitleMapKeys
+    global indexFileTitleCount, indexFileTitleMap, sortedIndexFileTitleMapKeys, TotalDocNum
+    with open(infile+".titlesCount","r") as temp_file:
+        TotalDocNum = int(temp_file.readline())
     with open(infile+".indexTitleMap","r") as temp_file:
         for line in temp_file:
             parts = line.strip().split('=')
             if len(parts) == 2:
-                index = parts[1]
-                word = parts[0]
-                indexFileTitleMap[index] = word
+                docID = int(parts[1])
+                index = parts[0]
+                indexFileTitleMap[docID] = index
     indexFileTitleCount = len(indexFileTitleMap)
     sortedIndexFileTitleMapKeys = sorted(indexFileTitleMap.keys())
 
@@ -83,19 +86,21 @@ def checkInIndexFileWordMap(term):
     
 # This method checks for the docID in the title part files and returns the title
 def checkInIndexFileTitleMap(docID):
-    pos = bisect.bisect(sortedIndexFileTitleMapKeys,docID)
+    pos = bisect.bisect(sortedIndexFileTitleMapKeys,int(docID))
     if pos > 0:
         pos = pos - 1
     key = sortedIndexFileTitleMapKeys[pos]
-    index = indexFileWordMap[key]
-    #print "key = {0} and index = {1}".format(key,index)
+    index = indexFileTitleMap[key]
+    #print "indexFileTitleMap::: key = {0} and index = {1}".format(key,index)
     with bz2.BZ2File("{0}.titles{1}.bz2".format(infile,index), 'rb', compresslevel=9) as ipartF:
         #print "checking file {0}.index{1}.bz2".format(infile,index)
         for line in ipartF:
             if line.startswith("{0}=".format(docID)):
                 parts = line.strip().split("=")
                 if len(parts) == 2:
+                    #return "{0}\t\t=\t{1}".format(docID,parts[1])
                     return parts[1]
+    #return "{0}".format(docID)
     return ""
 
 def intersectLists(lists):
@@ -119,33 +124,81 @@ def getSortedTuples(freq_map):
     
 def doSearch(queryObject, numOfResults):
     queryDocList = []
-    #ffoMap = {}
+    ffoMap = {}
     gTqueryDocList = {}
+    tTqueryDocList = {}
+    bTqueryDocList = {}
+    cTqueryDocList = {}
+    iTqueryDocList = {}
+    
     for gT in queryObject["gT"]:
-        ffo = checkInIndexFileWordMap(gT)
+        ffoMap[gT] = checkInIndexFileWordMap(gT)
+    for tT in queryObject["tT"]:
+        ffoMap[tT] = checkInIndexFileWordMap(tT)
+    for bT in queryObject["bT"]:
+        ffoMap[bT] = checkInIndexFileWordMap(bT)
+    for cT in queryObject["cT"]:
+        ffoMap[cT] = checkInIndexFileWordMap(cT)
+    for iT in queryObject["iT"]:
+        ffoMap[iT] = checkInIndexFileWordMap(iT)
+    
+    toUseDocIdList = set([])
+    if queryObject["type"] == "intersection":
+        toIntersect = []
+        for word in ffoMap:
+            wordDocs = []
+            for docid in ffoMap[word]:
+                wordDocs.append(docid)
+            toIntersect.append(set(wordDocs))
+        #intersected = set(intersectLists(toIntersect))
+        toUseDocIdList = set.intersection(*toIntersect)
+    else:
+        toUseAllDocIdList = []
+        for word in ffoMap:
+            toUseAllDocIdList.extend(ffoMap[word].keys())
+        toUseDocIdList = set(toUseAllDocIdList)
+                
+    for gT in queryObject["gT"]:
+        ffo = ffoMap[gT]
         if len(ffo) > 0:
             #ffoMap[gT] = ffo
             DF = len(ffo.keys())
             IDF = TotalDocNum / DF
             for docID in ffo.keys():
-                TF = ffo[docID]["t"] + ffo[docID]["b"] + ffo[docID]["c"] + ffo[docID]["i"]
-                gTqueryDocList[docID] = TF * IDF
-    tTqueryDocList = {}
+                if docID not in toUseDocIdList:
+                    continue
+#                 TF = ffo[docID]["t"] + ffo[docID]["b"] + ffo[docID]["c"] + ffo[docID]["i"]
+#                 gTqueryDocList[docID] = TF * IDF
+                if ffo[docID]["t"] > 0:
+                    TF = ffo[docID]["t"]
+                    tTqueryDocList[docID] = TF * IDF
+                if ffo[docID]["b"] > 0:
+                    TF = ffo[docID]["b"]
+                    bTqueryDocList[docID] = TF * IDF
+                if ffo[docID]["c"] > 0:
+                    TF = ffo[docID]["c"]
+                    cTqueryDocList[docID] = TF * IDF
+                if ffo[docID]["i"] > 0:
+                    TF = ffo[docID]["i"]
+                    iTqueryDocList[docID] = TF * IDF
+                
     for tT in queryObject["tT"]:
-        ffo = checkInIndexFileWordMap(tT)
+        ffo = ffoMap[tT]
         #print "tT = {0}, ffo = {1}".format(tT,ffo)
         if len(ffo) > 0:
             #ffoMap[tT] = ffo
             DF = len(ffo.keys())
             IDF = TotalDocNum / DF
             for docID in ffo.keys():
+                if docID not in toUseDocIdList:
+                    continue
                 if ffo[docID]["t"] > 0:
                     TF = ffo[docID]["t"]
                     tTqueryDocList[docID] = TF * IDF
         #print "tTqueryDocList = {0}".format(tTqueryDocList)
-    bTqueryDocList = {}
+    
     for bT in queryObject["bT"]:
-        ffo = checkInIndexFileWordMap(bT)
+        ffo = ffoMap[bT]
         #print "bT = {0}, ffo = {1}".format(bT,ffo)
         if len(ffo) > 0:
             #ffoMap[bT] = ffo
@@ -153,60 +206,69 @@ def doSearch(queryObject, numOfResults):
             IDF = TotalDocNum / DF
             #print "DF = {0} IDF = {1} TotalDocNum = {2}".format(DF,IDF,TotalDocNum)
             for docID in ffo.keys():
+                if docID not in toUseDocIdList:
+                    continue
                 if ffo[docID]["b"] > 0:
                     TF = ffo[docID]["b"]
                     bTqueryDocList[docID] = TF * IDF
         #print "bTqueryDocList = {0}".format(bTqueryDocList)
-    cTqueryDocList = {}
+    
     for cT in queryObject["cT"]:
-        ffo = checkInIndexFileWordMap(cT)
+        ffo = ffoMap[cT]
         if len(ffo) > 0:
             #ffoMap[cT] = ffo
             DF = len(ffo.keys())
             IDF = TotalDocNum / DF
             for docID in ffo.keys():
+                if docID not in toUseDocIdList:
+                    continue
                 if ffo[docID]["c"] > 0:
                     TF = ffo[docID]["c"]
                     cTqueryDocList[docID] = TF * IDF
-    iTqueryDocList = {}
+    
     for iT in queryObject["iT"]:
-        ffo = checkInIndexFileWordMap(iT)
+        ffo = ffoMap[iT]
         if len(ffo) > 0:
             #ffoMap[iT] = ffo
             DF = len(ffo.keys())
             IDF = TotalDocNum / DF
             for docID in ffo.keys():
+                if docID not in toUseDocIdList:
+                    continue
                 if ffo[docID]["i"] > 0:
                     TF = ffo[docID]["i"]
                     iTqueryDocList[docID] = TF * IDF
     
     tfidfDOCMap = {}
     
-    if queryObject["type"] == "intersection":
-        #print "Doing Intersection Query"
-        #queryDocList = list(set(iTqueryDocList.keys()) & set(cTqueryDocList.keys()) & set(bTqueryDocList.keys()) & set(tTqueryDocList.keys()) & set(gTqueryDocList.keys()))
-        toIntersect = [iTqueryDocList.keys(),cTqueryDocList.keys(),bTqueryDocList.keys(),tTqueryDocList.keys(),gTqueryDocList.keys()]
-        queryDocList = intersectLists(toIntersect)
-        for doc in queryDocList:
-            TFIDF = 0
-            if doc in iTqueryDocList:
-                TFIDF += iTqueryDocList[doc]*0.4
-            if doc in cTqueryDocList:
-                TFIDF += cTqueryDocList[doc]*0.6
-            if doc in bTqueryDocList:
-                TFIDF += bTqueryDocList[doc]*0.2
-            if doc in tTqueryDocList:
-                TFIDF += tTqueryDocList[doc]*0.8
-            if doc in gTqueryDocList:
-                TFIDF += gTqueryDocList[doc]*0.4
-            tfidfDOCMap[doc] = TFIDF
-    else:
-        #print "Doing Regular Query"
-        queryDocList.extend(gTqueryDocList.keys())
-        for doc in queryDocList:
-            TFIDF = 0
-            if doc in gTqueryDocList:
-                TFIDF = gTqueryDocList[doc]
+#     if queryObject["type"] == "intersection":
+#         #print "Doing Intersection Query"
+#         #queryDocList = list(set(iTqueryDocList.keys()) & set(cTqueryDocList.keys()) & set(bTqueryDocList.keys()) & set(tTqueryDocList.keys()) & set(gTqueryDocList.keys()))
+#         toIntersect = [iTqueryDocList.keys(),cTqueryDocList.keys(),bTqueryDocList.keys(),tTqueryDocList.keys(),gTqueryDocList.keys()]
+#         queryDocList = intersectLists(toIntersect)
+#         
+#     else:
+#         #print "Doing Regular Query"
+#         queryDocList.extend(gTqueryDocList.keys())
+#         queryDocList.extend(iTqueryDocList.keys())
+#         queryDocList.extend(cTqueryDocList.keys())
+#         queryDocList.extend(bTqueryDocList.keys())
+#         queryDocList.extend(tTqueryDocList.keys())
+        
+    for doc in toUseDocIdList:
+        #print doc
+        TFIDF = 0
+        if doc in iTqueryDocList:
+            TFIDF += iTqueryDocList[doc]*0.2
+        if doc in cTqueryDocList:
+            TFIDF += cTqueryDocList[doc]*0.2
+        if doc in bTqueryDocList:
+            TFIDF += bTqueryDocList[doc]*0.2
+        if doc in tTqueryDocList:
+            TFIDF += tTqueryDocList[doc]*6
+        if doc in gTqueryDocList:
+            TFIDF += gTqueryDocList[doc]*0.2
+        if TFIDF >0:
             tfidfDOCMap[doc] = TFIDF
     
     sorted_tuples = getSortedTuples(tfidfDOCMap)
@@ -215,7 +277,9 @@ def doSearch(queryObject, numOfResults):
     #print sorted_tuples
     toReturnList = []
     topNtuples = sorted_tuples[:numOfResults]
+    #topNtuples = sorted_tuples
     for pair in topNtuples:
+        #print pair
         toReturnList.append(pair[0])
     #print toReturnList
     return toReturnList
@@ -226,6 +290,17 @@ def getTitlesFromDocIds(docIDList):
     for docID in docIDList:
         titlesList.append(checkInIndexFileTitleMap(docID))
     return titlesList
+def checkQueryInTitle(query,docTitleList):
+    toReturn = [""]
+    queryTokens = set(TokenStemmer.getStemmedTokens(query))
+    for title in docTitleList:
+        #print title
+        if queryTokens == set(TokenStemmer.getStemmedTokens(title)):
+            toReturn[0] = title
+        else:
+            toReturn.append(title)
+    return toReturn
+    
 
 start = int(round(time.time()*1000))
 
@@ -248,6 +323,8 @@ for query in queries:
     listOfDocIDs = doSearch(queryObject,10)
     print "Query = {0}".format(query)
     listOfTitles = getTitlesFromDocIds(listOfDocIDs)
+    #if query is an article title, then make it first result...
+    listOfTitles = checkQueryInTitle(query, listOfTitles)
     for title in listOfTitles:
         print title
     print ""
