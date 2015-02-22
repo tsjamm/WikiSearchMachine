@@ -263,7 +263,7 @@ def doSearch(queryObject, numOfResults):
         if doc in cTqueryDocList:
             TFIDF += cTqueryDocList[doc]*0.2
         if doc in bTqueryDocList:
-            TFIDF += bTqueryDocList[doc]*0.2
+            TFIDF += bTqueryDocList[doc]*0.1
         if doc in tTqueryDocList:
             TFIDF += tTqueryDocList[doc]*6
         if doc in gTqueryDocList:
