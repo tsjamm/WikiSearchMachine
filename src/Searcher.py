@@ -34,8 +34,9 @@ def getdocIDTitleMap():
 
 indexFileCount = 0
 indexFileWordMap = {}
+sortedIndexFileWordMapKeys = []
 def getIndexFileWordMap():
-    global indexFileCount
+    global indexFileCount, indexFileWordMap, sortedIndexFileWordMapKeys
     with open(infile+".indexWordMap","r") as temp_file:
         for line in temp_file:
             parts = line.strip().split('=')
@@ -44,28 +45,58 @@ def getIndexFileWordMap():
                 word = parts[0]
                 indexFileWordMap[index] = word
     indexFileCount = len(indexFileWordMap)
+    sortedIndexFileWordMapKeys = sorted(indexFileWordMap.keys())
 
+indexFileTitleCount = 0
+indexFileTitleMap = {}
+sortedIndexFileTitleMapKeys = []
+def getIndexFileTitleMap():
+    global indexFileTitleCount, indexFileTitleMap, sortedIndexFileTitleMapKeys
+    with open(infile+".indexTitleMap","r") as temp_file:
+        for line in temp_file:
+            parts = line.strip().split('=')
+            if len(parts) == 2:
+                index = parts[1]
+                word = parts[0]
+                indexFileTitleMap[index] = word
+    indexFileTitleCount = len(indexFileTitleMap)
+    sortedIndexFileTitleMapKeys = sorted(indexFileTitleMap.keys())
 
+# This method checks for the word in the index part files and returns a frequency object
 def checkInIndexFileWordMap(term):
-    #print "term is {0}".format(term)
-    sortedKeys = sorted(indexFileWordMap.keys())
-    #print "sortedKeys = {0}".format(sortedKeys)
-    pos = bisect.bisect(sortedKeys,term)
+    pos = bisect.bisect(sortedIndexFileWordMapKeys,term)
     if pos > 0:
         pos = pos - 1
-    key = sortedKeys[pos]
+    key = sortedIndexFileWordMapKeys[pos]
     index = indexFileWordMap[key]
     #print "key = {0} and index = {1}".format(key,index)
     with bz2.BZ2File("{0}.index{1}.bz2".format(infile,index), 'rb', compresslevel=9) as ipartF:
         #print "checking file {0}.index{1}.bz2".format(infile,index)
         for line in ipartF:
-            if line.startswith(term):
+            if line.startswith("{0}=".format(term):
                 parts = line.strip().split("=")
                 if len(parts) == 2:
                     word = parts[0]
                     ffo = Indexer.getFOFromLine(parts[1])
                     return ffo
     return {}
+    
+# This method checks for the docID in the title part files and returns the title
+def checkInIndexFileTitleMap(docID):
+    pos = bisect.bisect(sortedIndexFileTitleMapKeys,docID)
+    if pos > 0:
+        pos = pos - 1
+    key = sortedIndexFileTitleMapKeys[pos]
+    index = indexFileWordMap[key]
+    #print "key = {0} and index = {1}".format(key,index)
+    with bz2.BZ2File("{0}.titles{1}.bz2".format(infile,index), 'rb', compresslevel=9) as ipartF:
+        #print "checking file {0}.index{1}.bz2".format(infile,index)
+        for line in ipartF:
+            if line.startswith("{0}=".format(docID):
+                parts = line.strip().split("=")
+                if len(parts) == 2:
+                    return parts[1]
+    return ""
 
 def intersectLists(lists):
     if len(lists)==0:
@@ -190,12 +221,18 @@ def doSearch(queryObject, numOfResults):
     return toReturnList
     # return []
 
+def getTitlesFromDocIds(docIDList):
+    titlesList = []
+    for docID in docIDList:
+        titlesList.append(checkInIndexFileTitleMap(docID))
+    return titlesList
 
 start = int(round(time.time()*1000))
 
 #getIndexPositionMap()
 getIndexFileWordMap()
-getdocIDTitleMap()
+getIndexFileTitleMap()
+#getdocIDTitleMap()  ## This consumes too much memory...
 
 
 
@@ -210,8 +247,9 @@ for query in queries:
     queryObject = QueryHandler.parseQuery(query)
     listOfDocIDs = doSearch(queryObject,10)
     print "Query = {0}".format(query)
-    for doc in listOfDocIDs:
-        print docIDTitleMap[doc]
+    listOfTitles = getTitlesFromDocIds(listOfDocIDs)
+    for title in listOfTitles:
+        print title
     print ""
     
 end = int(round(time.time()*1000))
