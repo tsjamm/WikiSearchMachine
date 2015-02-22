@@ -299,6 +299,8 @@ def checkQueryInTitle(query,docTitleList):
             toReturn[0] = title
         else:
             toReturn.append(title)
+    if toReturn[0] == "":
+        del toReturn[0]
     return toReturn
     
 
