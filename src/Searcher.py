@@ -73,10 +73,10 @@ def checkInIndexFileWordMap(term):
     with bz2.BZ2File("{0}.index{1}.bz2".format(infile,index), 'rb', compresslevel=9) as ipartF:
         #print "checking file {0}.index{1}.bz2".format(infile,index)
         for line in ipartF:
-            if line.startswith("{0}=".format(term):
+            if line.startswith("{0}=".format(term)):
                 parts = line.strip().split("=")
                 if len(parts) == 2:
-                    word = parts[0]
+                    #word = parts[0]
                     ffo = Indexer.getFOFromLine(parts[1])
                     return ffo
     return {}
@@ -92,7 +92,7 @@ def checkInIndexFileTitleMap(docID):
     with bz2.BZ2File("{0}.titles{1}.bz2".format(infile,index), 'rb', compresslevel=9) as ipartF:
         #print "checking file {0}.index{1}.bz2".format(infile,index)
         for line in ipartF:
-            if line.startswith("{0}=".format(docID):
+            if line.startswith("{0}=".format(docID)):
                 parts = line.strip().split("=")
                 if len(parts) == 2:
                     return parts[1]
